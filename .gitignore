@@ -1,1 +1,6 @@
 *.Identifier
+*.aux
+*latexmk
+*.log
+*.fls
+*.gz

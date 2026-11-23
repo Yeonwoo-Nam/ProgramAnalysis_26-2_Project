@@ -1,0 +1,267 @@
+\documentclass[a4paper, 10pt]{article}
+\usepackage[a4paper,left=8mm,right=8mm,top=10mm,bottom=20mm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{kotex}
+\usepackage{amsmath,amsfonts,amssymb,mathrsfs,mathtools}
+\usepackage{adjustbox,float,graphicx,relsize}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{setspace}
+\usepackage{expl3}
+\usepackage{xparse}
+\usepackage{enumitem}
+\usepackage{forloop}
+\usepackage{amsthm}
+\usepackage{verbatim}
+\usepackage{wrapfig}
+\usepackage{lipsum}
+\usepackage{fancyvrb}
+\usepackage{balance}
+\usepackage{mathpartir}
+\usepackage{stmaryrd}
+\usepackage{cprotect}
+\usepackage{pbox}
+\usepackage[normalem]{ulem}
+\usepackage{dashbox}
+\usepackage{soul}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{framed}
+\usepackage{enumitem}
+\usepackage{cleveref}
+\crefname{lemma}{렘마}{렘마}
+
+\title{프로그램분석 26F HW2}
+\author{2024-21504 남연우(Yeonwoo Nam)}
+\date{}
+
+\makeatletter
+\let\thetitle=\@title
+\makeatother
+
+\newtheorem{theorem}{정리}
+\newtheorem{lemma}{렘마}
+
+\begin{document}
+\input{macros.tex}
+
+\maketitle
+
+\paragraph{Collecting Semantics.}
+프로그램 $P$에 나타나는 변수들의 유한집합을 $V$라 하자.
+변수의 주소와 정수값은 구별하여 다음과 같이 정의한다.
+\[
+ \mathrm{Val}=\mathbb Z\uplus\{\&x\mid x\in V\},\qquad
+ \Sigma=V\to\mathrm{Val},\qquad D=\powset{\Sigma}
+\]
+
+좌변의 위치와 우변의 값은 각각 $\sem{L}_{\mathrm L}$과 $\sem{R}_{\mathrm R}$로 구별하여 정의한다.
+$\sigma(x)\in\mathbb{Z}$일 때 $\sem{*x}$는 정의되지 않는다.
+\[
+\begin{aligned}
+ \sem{x}_{\mathrm L}(\sigma)&=x,
+ &\sem{n}_{\mathrm R}(\sigma)&=n,\\
+ \sem{*x}_{\mathrm L}(\sigma)&=y\quad(\sigma(x)=\&y),
+ &\sem{x}_{\mathrm R}(\sigma)&=\sigma(x),\\
+ &&\sem{*x}_{\mathrm R}(\sigma)&=\sigma(y)\quad(\sigma(x)=\&y),\\
+ &&\sem{\&x}_{\mathrm R}(\sigma)&=\&x.
+\end{aligned}
+\]
+우변과 좌변의 위치는 모두 대입 전 상태에서 계산한다.
+$B$는 메모리를 변경하지 않는 Boolean 식으로 둔다.
+
+실행 중 나타나는 상태를 over-approximate하는 collecting semantics $\sem{C}\in D\ra D$를 정의한다.
+종료 상태와 중간 상태를 구별하지 않고, sequence에서는 앞 statement가 모은 모든 상태를
+뒷 statement의 입력으로 사용한다. 따라서 실제로 실행되지 않는 순서로 얻은 상태도 포함할 수 있다.
+분석의 목적은 모든 실제 points-to 관계를 포함하는 것이므로 이 over-approximate를 허용한다.
+Boolean 식에 의한 state 집합의 제한을
+\[
+ \mathcal B_{\btrue}(S)=\{\sigma\in S\mid\sem{B}(\sigma)=\btrue\}
+\]
+로 두고, statement의 의미를 다음과 같이 정의한다.
+\[
+\begin{aligned}
+ \csem{L:=R}{S}
+  &=S\cup\{\sigma[u\mapsto v]\mid\sigma\in S,\
+        \sem{L}_{\mathrm L}(\sigma)=u,\
+        \sem{R}_{\mathrm R}(\sigma)=v\},\\
+ \csem{C_1;C_2}{S}&=\csem{C_2}{\csem{C_1}{S}},\\
+ \csem{\mathsf{while}\ B\ C}{S}
+  &=\operatorname{lfp}\bigl(\lambda X.~S\cup\csem{C}{\mathcal B_{\btrue}(X)}\bigr).
+\end{aligned}
+\]
+대입에서 좌변이나 우변의 계산이 정의되지 않으면 그 상태에서 새 상태를 만들지 않는다.
+각 함수는 포함관계에 대해 단조이며 합집합을 보존하고, $S\subseteq\csem{C}{S}$이다.
+루프의 의미는 $X_0=\emptyset$,
+$X_{k+1}=S\cup\csem{C}{\mathcal B_{\btrue}(X_k)}$에 대한
+$\bigcup_{k\ge0}X_k$이다.
+본문의 중간 상태도 다음 반복의 입력 후보로 사용하므로 이 역시 과over-approximate이다.
+
+이 정의는 모든 실제 실행 중 나타나는 상태를 포함한다.
+초기에 points-to 관계가 없다고 가정하고, 초기상태 집합을
+\[
+ I_0=\{\sigma\in\Sigma\mid\forall x\in V.~\sigma(x)\in\mathbb Z\}
+\]
+로 고정한다. 따라서 모든 변수의 초기값은 임의의 정수이다.
+이하에서는 $\csem{P}{I_0}$를 요약의미가 포함함을 보인다.
+
+\paragraph{Abstract Domain.}
+요약공간을 다음과 같이 정의한다. $A(x)$는 $x$가 가리킬 \emph{수 있는} 변수들의 집합이다.
+\[
+ A\in D^\sharp=V\ra\powset{V}.
+\]
+\[
+\begin{gathered}
+ A\sqsubseteq A'\ \Longleftrightarrow\
+       \forall x\in V.\ A(x)\subseteq A'(x),\qquad
+ \bot^\sharp(x)=\emptyset,\quad\top^\sharp(x)=V,\\
+ \left(\bigsqcup_i A_i\right)(x)=\bigcup_i A_i(x),
+ \qquad
+ \left(\bigsqcap_i A_i\right)(x)=\bigcap_i A_i(x).
+\end{gathered}
+\]
+따라서 $D^\sharp$는 finite complete lattice이다. abstract/concretization 함수를
+\[
+ \alpha(S)(x)=\{y\in V\mid\exists\sigma\in S.\ \sigma(x)=\&y\},
+ \qquad
+ \gamma(A)=\{\sigma\in\Sigma\mid
+    \forall x,y\in V.\ \sigma(x)=\&y\Rightarrow y\in A(x)\}
+\]
+로 정의한다. 그러면
+\[
+ \alpha(S)\sqsubseteq A\quad\Longleftrightarrow\quad S\subseteq\gamma(A)
+\]
+이므로 $(\alpha,\gamma)$는 Galois connection을 이룬다.
+정의에 의해 $I_0=\gamma(\bot^\sharp)$이고 $\alpha(I_0)=\bot^\sharp$이다.
+따라서 실제 도달 상태 집합을 $\mathrm{Reach}_P(I_0)$라 쓰면, 증명할 포함관계는
+\[
+ \mathrm{Reach}_P(I_0)\subseteq\csem{P}{I_0}
+ \subseteq\gamma(\asem{P}{\bot^\sharp})
+\]
+이다.
+
+\newpage
+\paragraph{Abstract Semantics.}
+좌변이 쓸 수 있는 위치와 우변이 가질 수 있는 \emph{주소}를 각각
+\[
+\begin{aligned}
+ \sem{x}^{\sharp}_{\mathrm L}(A)&=\{x\},
+ &\sem{n}^{\sharp}_{\mathrm R}(A)&=\emptyset,\\
+ \sem{*x}^{\sharp}_{\mathrm L}(A)&=A(x),
+ &\sem{x}^{\sharp}_{\mathrm R}(A)&=A(x),\\
+ &&\sem{*x}^{\sharp}_{\mathrm R}(A)&=\bigcup_{y\in A(x)}A(y),\\
+ &&\sem{\&x}^{\sharp}_{\mathrm R}(A)&=\{x\}.
+\end{aligned}
+\]
+로 정의한다. Abstract semantics $\sem{C}^\sharp:D^\sharp\to D^\sharp$를 아래와 같이 정의한다.
+\[
+\begin{aligned}
+ \asem{L:=R}{A}(u)&=A(u)\cup
+ \begin{cases}
+  \sem{R}^{\sharp}_{\mathrm R}(A)&u\in\sem{L}^{\sharp}_{\mathrm L}(A),\\
+  \emptyset&\text{그 외},
+ \end{cases}\\
+ \asem{C_1;C_2}{A}&=\asem{C_2}{\asem{C_1}{A}},\\
+ \asem{\mathsf{while}\ B\ C}{A}
+  &=\operatorname{lfp}\bigl(\lambda X.~A\sqcup\asem{C}{X}\bigr).
+\end{aligned}
+\]
+요약공간은 정수값이나 조건식의 참/거짓을 기록하지 않으므로,
+조건에 대한 요약함수는 $\mathcal B^\sharp_{\btrue}(A)=A$로 둔다.
+실제로 $S\subseteq\gamma(A)$이면
+$\mathcal B_{\btrue}(S)\subseteq S\subseteq\gamma(A)$이므로 이 구현은 안전하다.
+루프의 정의에서는 이 항등함수를 생략하였다.
+
+$A\sqsubseteq\asem{C}{A}$이다.
+루프의 최소고정점은
+\[
+ X^{\sharp}_0=\bot^\sharp,\qquad
+ X^{\sharp}_{k+1}=A\sqcup\asem{C}{X^{\sharp}_k}
+\]
+로 계산한다. $D^\sharp$가 유한하므로
+유한 번의 반복 후 안정되며 widening은 필요 없다.
+초기 요약상태는 $\alpha(I_0)=\bot^\sharp$이며,
+프로그램 전체의 분석 결과는 $\asem{P}{\bot^\sharp}$이다.
+
+
+\paragraph{Soundness Proof.}
+\begin{lemma}
+$S\subseteq\gamma(A)$이면 $\csem{L:=R}{S}\subseteq\gamma(\asem{L:=R}{A})$이다.
+\end{lemma}
+\begin{proof}
+$\sigma\in S$를 잡으면 $\sigma\in\gamma(A)$이다.
+
+먼저 $\sem{L}_{\mathrm L}(\sigma)\in\sem{L}^{\sharp}_{\mathrm L}(A)$임을 증명하자.
+$L=x$이면 자명하고, $L=*x$이면 $\sigma(x)=\&y$와 $\sigma\in\gamma(A)$로부터 $y\in A(x)$이다.
+
+또 $\sem{R}_{\mathrm R}(\sigma)=\&v$이면 $v\in\sem{R}^{\sharp}_{\mathrm R}(A)$임을 증명할 수 있다.
+$R=n$인 경우는 불가능하고, $R=\&x$이면 $v=x$이다.
+$R=x$이면 $\gamma$의 정의에 의해 참이다.
+$R=*x$이면 어떤 $y$에 대해 $\sigma(x)=\&y$, $\sigma(y)=\&v$이므로
+$y\in A(x)$, $v\in A(y)$이다.
+
+$s=(L:=R)$라 하고 $\sigma'\in\csem{s}{S}$를 잡자.
+$\sigma'\in S$이면 $A\sqsubseteq \asem{s}{A}$로부터 원하는 결론을 얻는다.
+그 외에는 어떤 $\sigma\in S$와 $u,v$에 대해
+$\sem{L}_{\mathrm L}(\sigma)=u$, $\sem{R}_{\mathrm R}(\sigma)=v$이고
+$\sigma'=\sigma[u\mapsto v]$이다.
+$\sigma'(a)=\&b$인 임의의 $a,b$를 잡는다.
+$a\ne u$이면 $\sigma(a)=\&b$이므로 $b\in A(a)\subseteq \asem{s}{A}(a)$이다.
+$a=u$이면 우변의 값이 $\&b$이므로 위 성질에 따라
+$b\in\sem{R}^{\sharp}_{\mathrm R}(A)\subseteq \asem{s}{A}(u)$이다.
+따라서 $\sigma'\in\gamma(\asem{s}{A})$이다.
+\end{proof}
+
+\begin{theorem}
+$S\in D$, $A\in D^\sharp$, statement $C$에 대해
+\[
+ S\subseteq\gamma(A)\quad\Longrightarrow\quad
+ \csem{C}{S}\subseteq\gamma(\asem{C}{A}).
+\]
+특히 $S=I_0$, $A=\bot^\sharp$로 두면
+$\alpha(\csem{P}{I_0})\sqsubseteq\asem{P}{\bot^\sharp}$이다.
+\end{theorem}
+\begin{proof}
+$C$의 구조에 대해 induction으로 증명한다. $C=(L:=R)$인 경우는 렘마 1에 의해 성립한다.
+
+$C = (C_1;C_2)$이면 induction hypothesis를 차례로 적용하여
+\[
+ \csem{C_1}{S}\subseteq\gamma(\asem{C_1}{A}),\qquad
+ \csem{C_2}{\csem{C_1}{S}}
+ \subseteq\gamma(\asem{C_2}{\asem{C_1}{A}})
+\]
+를 얻으므로 정의에 의해 결론이 성립한다.
+
+$C=W=\mathsf{while}\ B\ C_0$인 경우 다음 두 함수를 정의한다.
+\[
+ F(X)=S\cup\csem{C_0}{\mathcal B_{\btrue}(X)},\qquad
+ F^\sharp(Y)=A\sqcup\asem{C_0}{Y}.
+\]
+$F$는 연속이고 $F^\sharp$는 단조이다.
+임의의 $Y\in D^\sharp$에 대해
+$\mathcal B_{\btrue}(\gamma(Y))\subseteq\gamma(Y)$이므로,
+$C_0$에 대한 induction hypothesis와 $S\subseteq\gamma(A)$로부터
+\[
+\begin{aligned}
+ F(\gamma(Y))
+ &=S\cup\csem{C_0}{\mathcal B_{\btrue}(\gamma(Y))}\\
+ &\subseteq\gamma(A)\cup\gamma(\asem{C_0}{Y})\\
+ &\subseteq\gamma\bigl(A\sqcup\asem{C_0}{Y}\bigr)
+ =\gamma(F^\sharp(Y)).
+\end{aligned}
+\]
+따라서 $F\circ\gamma\sqsubseteq\gamma\circ F^\sharp$이다.
+Fixpoint Transfer Theorem을 적용하면
+\[
+ \csem{W}{S}=\operatorname{lfp}(F)
+ \subseteq\gamma\left(\bigsqcup_{i\ge0}(F^\sharp)^i(\bot^\sharp)\right)
+ =\gamma(\operatorname{lfp}(F^\sharp))
+ =\gamma(\asem{W}{A}).
+\]
+
+마지막 주장은 $I_0=\gamma(\bot^\sharp)$와 Galois connection으로부터 따른다.
+\end{proof}
+이 정리와 $\mathrm{Reach}_P(I_0)\subseteq\csem{P}{I_0}$를 결합하면,
+모든 실제 실행 중 나타나는 points-to 관계가 분석 결과에 포함됨을 증명한다.
+
+\end{document}
