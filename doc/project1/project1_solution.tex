@@ -9,237 +9,244 @@
 \title{프로그램분석 26F Project 1}
 \author{2024-21504 남연우(Yeonwoo Nam)}
 \date{}
-\newtheorem{theorem}{정리}
-\newtheorem{lemma}{렘마}
-\newcommand{\ps}[1]{\mathcal P(#1)}
-\newcommand{\lf}{\operatorname{lfp}}
-\newcommand{\lab}{\operatorname{label}}
-\newcommand{\halt}{\mathsf{halt}}
-\newcommand{\nxt}{\operatorname{next}}
-\newcommand{\nt}{\operatorname{nextTrue}}
-\newcommand{\nf}{\operatorname{nextFalse}}
-\newcommand{\cont}{\operatorname{cont}}
-\newcommand{\Eval}{\operatorname{Eval}}
-\newcommand{\Id}{\operatorname{id}}
-\newcommand{\tr}{\hookrightarrow}
-\newcommand{\atr}{\hookrightarrow^\sharp}
-\newcommand{\T}{\mathsf T}
-\newcommand{\Ff}{\mathsf F}
-\newcommand{\addr}{\operatorname{addr}}
-\newcommand{\Step}{\operatorname{Step}}
-\newcommand{\Graph}{\operatorname{Graph}}
+\input{macro.tex}
 \begin{document}
-\input{macros.tex}
 \maketitle
 
 \paragraph{공통 설정.}
 분석할 프로그램 $P$를 고정하고, 그 안의 모든 labeled command의 집합을
-$\mathrm{Cmd}_P$, 원래 레이블의 유한집합을 $L_P\subseteq\mathbb N$이라 하자.
-각 command에는 서로 다른 레이블이 있으므로 $\lab:\mathrm{Cmd}_P\to L_P$는 전단사이다.
-$P_l$은 레이블 $l$의 command이다.
+$\Cmd_P$, 원래 레이블의 유한집합을 $L_P\subseteq\mathbb N$이라 하자.
+각 command에는 서로 다른 레이블이 있으므로 $\lab:\Cmd_P\to L_P$는 전단사이다.
 종료를 나타내는 새 기호 $\halt\notin\mathbb N$을 추가하여
 $L=L_P\cup\{\halt\}$로 둔다. $\halt$는 command나 \texttt{goto}의 대상이 아니다.
 
-프로그램의 변수집합 $V_P$와 단사함수 $\addr:V_P\to\mathbb Z$를 고정한다.
+변수 이름의 타입 $\mathrm{Var}$에 대해 주소에 해당하는 함수 $\addr:\mathrm{Var}\to\mathbb Z$를 고정한다.
 값, 메모리, 모둠 메모리 공간은 각각
 \[
- \mathrm{Val}=\mathbb Z,\qquad M=V_P\to\mathbb Z,\qquad D=\ps M
+ \mathrm{Val}=\mathbb Z,\qquad M=\mathbb Z\to\mathbb Z,\qquad D=\ps M
 \]
-이다. 주소도 정수값으로 표현하며, $\&x$의 값은 $\addr(x)$이다.
+이다.
+구체 공간 $D$는 포함관계, 최하원소 $\emptyset$, 체인의 최소상한인 집합의 합집합으로
+CPO를 이룬다. 구체 결과를 합칠 때에는 이 일반적인 집합의 합집합을 사용한다.
+메모리 $m\in M$은 정수 주소 $a$의 값을 $m(a)$로 주는 함수이다.
+음수를 포함한 모든 정수 주소에서 읽기와 쓰기가 정의되며,
+변수 이름에 대응하지 않는 주소도 사용할 수 있다.
+메모리의 갱신은
+\[
+ m[a\mapsto v](b)=
+ \begin{cases}v&b=a,\\m(b)&b\ne a\end{cases}
+\]
+로 정의한다.
 초기 메모리집합 $M_0\subseteq M$는 주어진 매개변수로 두고,
 초기값이 모두 $0$이라는 가정은 하지 않는다.
-잘못된 주소를 역참조하거나 존재하지 않는 레이블로 점프하면
-그 선택에 따른 실행은 stuck되어 후속 상태 및 정상 종료 결과를 만들지 않는다.
-다른 유효한 비결정적 선택이 있다면 그 실행은 계속된다.
 
 조건식에서 $0$은 거짓, $0$이 아닌 정수는 참이다.
-\textbf{$\mathsf{repeat}\ C\ E$는 $\mathsf{while}\ E\ C$와 같은 의미로 정의한다.}
+$\mathsf{repeat}\ C\ E$는 $\mathsf{while}\ E\ C$와 같은 의미로 정의한다.
 즉, 본문 실행 전에 조건을 검사한다.
-$\mathsf{readInt}$는 평가할 때마다 독립적으로 임의의 정수를 반환한다.
-식은 메모리를 변경하지 않는다.
-구조 내부로 점프했을 때에는 그 위치의 정적인 문맥에 따라 계속 실행하며,
-점프한 위치에서 원래의 \texttt{goto} 다음으로 되돌아오지 않는다.
 
 \paragraph{식의 의미.}
 각 식 $E$에 대해 $\Eval_E:M\to\ps{\mathbb Z}$를 다음과 같이 정의한다.
-이는 하나의 메모리에서 가능한 값들을 모두 모은다.
 \[
 \begin{aligned}
  \Eval_n(m)&=\{n\},&
- \Eval_x(m)&=\{m(x)\},&
+ \Eval_x(m)&=\{m(\addr(x))\},&
  \Eval_{\&x}(m)&=\{\addr(x)\},\\
- \Eval_{*x}(m)&=\{m(y)\mid y\in V_P,\ m(x)=\addr(y)\},&
+ \Eval_{*x}(m)&=\{m(m(\addr(x)))\},&
  \Eval_{\mathsf{readInt}}(m)&=\mathbb Z,&
  \Eval_{-E}(m)&=\{-v\mid v\in\Eval_E(m)\},\\
  \Eval_{E_1+E_2}(m)&=\{v_1+v_2\mid v_i\in\Eval_{E_i}(m)\},\\
- \Eval_{E_1*E_2}(m)&=\{v_1v_2\mid v_i\in\Eval_{E_i}(m)\},\\
+ \Eval_{E_1*E_2}(m)&=\{v_1\cdot v_2\mid v_i\in\Eval_{E_i}(m)\},\\
  \Eval_{E_1<E_2}(m)&=\{\mathbf1[v_1<v_2]\mid v_i\in\Eval_{E_i}(m)\}.
 \end{aligned}
 \]
 여기서 $\mathbf1[Q]$는 명제 $Q$가 참이면 $1$, 아니면 $0$이다.
-잘못된 역참조의 결과는 공집합이다.
-같은 식에 등장하는 서로 다른 $\mathsf{readInt}$는 서로 다른 값을 선택할 수 있다.
+역참조할 주소는 $m(\addr(x))\in\mathbb Z$이므로,
+\texttt{*x}의 값은 항상 정의된다.
 집합 입력에 대한 자연스러운 확장은
-$\mathrm{eval}_E(X)=\bigcup_{m\in X}\Eval_E(m):D\to\ps{\mathbb Z}$이다.
+$\evalset_E(X)=\bigcup_{m\in X}\Eval_E(m):D\to\ps{\mathbb Z}$이다.
 
-\paragraph{모둠 의미 연산자.}
+\paragraph{의미 연산자.}
 $b\in\{\T,\Ff\}$에 대해 $B_\T=\mathbb Z\setminus\{0\}$, $B_\Ff=\{0\}$으로 두고,
-다음 연산자들을 정의한다.
+하나의 메모리에서 가능한 결과 메모리들의 집합을 주는 연산자들을 정의한다.
 \[
 \begin{aligned}
- A_{x,E}(X)&=\{m[x\mapsto v]\mid m\in X,\ v\in\Eval_E(m)\},\\
- W_{x,E}(X)&=\{m[y\mapsto v]\mid m\in X,\ y\in V_P,\
-                 m(x)=\addr(y),\ v\in\Eval_E(m)\},\\
- B_{E,b}(X)&=\{m\in X\mid \Eval_E(m)\cap B_b\ne\emptyset\},\\
- G_{E,k}(X)&=\{m\in X\mid k\in\Eval_E(m)\}\qquad(k\in L_P).
+ A_{x,E}(m)&=\{m[\addr(x)\mapsto v]\mid v\in\Eval_E(m)\},\\
+ W_{x,E}(m)&=\{m[m(\addr(x))\mapsto v]\mid v\in\Eval_E(m)\},\\
+ B_{E,b}(m)&=\begin{cases}
+   \{m\}&\Eval_E(m)\cap B_b\ne\emptyset,\\
+   \emptyset&\text{그 밖의 경우},
+ \end{cases}\\
+ G_{E,k}(m)&=\begin{cases}
+   \{m\}&k\in L_P\cap\Eval_E(m),\\
+   \emptyset&\text{그 밖의 경우}
+ \end{cases}.
 \end{aligned}                                                    \tag{1}
 \]
-$A,W,B,G:D\to D$이며 $\Id_D:D\to D$와
-$\cup:D\times D\to D$도 사용한다.
-각 연산자는 임의의 합집합을 보존한다.
-특히 대입에서는 좌변의 주소와 우변의 값을 모두 \emph{동일한 대입 전 메모리}에서 계산한다.
-$\{m[x\mapsto v]\mid m\in X,v\in\mathrm{eval}_E(X)\}$로 정의하면
-서로 다른 메모리의 값이 섞이므로 정확한 모둠의미가 아니다.
+$A,W,B,G:M\to D$이며, 메모리를 그대로 두는 연산자는
+$\eta:M\to D$, $\eta(m)=\{m\}$이다.
+집합 입력에 대한 연산자는 이들로부터
+\[
+ \setlift{T}:D\to D,\qquad
+ \setlift{T}(X)=\bigcup_{m\in X}T(m)
+ \qquad(T\in\{A_{x,E},W_{x,E},B_{E,b},G_{E,k},\eta\})
+\]
+로 유도한다. 특히 $\setlift{\eta}=\Id_D$이고,
+각 $\setlift{T}$는 임의의 합집합을 보존한다.
 
 \paragraph{요약 의미공간과 연산자 가정.}
-구체적인 요약공간의 구현은 정하지 않는다.
-완전격자 $M^\sharp$와 다음 Galois connection만 가정한다.
+최하원소 $\bot_M$과 모든 체인의 최소상한을 갖는 CPO
+$(\Msharp,\sqsubseteq)$ 및 다음 Galois connection을 가정한다.
 \[
- \alpha_M:D\rightleftarrows M^\sharp:\gamma_M,\qquad
+ \alpha_M:D\rightleftarrows \Msharp:\gamma_M,\qquad
  \alpha_M(X)\sqsubseteq a\ \Longleftrightarrow\
  X\subseteq\gamma_M(a).
                                                                \tag{2}
 \]
-사용하는 요약 연산자들의 타입은 다음과 같다.
+사용하는 연산자들의 타입은 다음과 같다.
 \[
-\begin{array}{c|c|c}
- \text{연산자}&\text{구체 타입}&\text{요약 타입}\\ \hline
- A_{x,E},W_{x,E},B_{E,b},G_{E,k}
-   &D\to D&M^\sharp\to M^\sharp\\
- \Id_D&D\to D&M^\sharp\to M^\sharp\\
- \cup&D\times D\to D&M^\sharp\times M^\sharp\to M^\sharp
+\begin{array}{c|c|c|c}
+ \text{연산자}&\text{한 메모리 입력}&\text{집합 입력으로 올린 타입}&\text{요약 타입}\\ \hline
+ A_{x,E},W_{x,E},B_{E,b},G_{E,k},\eta
+   &M\to D&D\to D&\Msharp\to \Msharp\\
+ \text{결과의 합집합}&--&D\times D\to D&\Msharp\times \Msharp\to \Msharp
 \end{array}
 \]
 요약 버전은 각각 $A^\sharp,W^\sharp,B^\sharp,G^\sharp$,
-$\Id_{M^\sharp}$, $\sqcup$이다.
-$A^\sharp,W^\sharp,B^\sharp,G^\sharp$는 단조이고, 각 대응 연산자 $T$에 대해
+$\eta^\sharp=\Id_{\Msharp}$이다.
+요약 결과를 합치는 연산자는 CPO의 체인 최소상한과 별도로 주어지는
 \[
- T\circ\gamma_M\ \subseteq\ \gamma_M\circ T^\sharp                 \tag{3}
+ \aunions:\ps{\Msharp}\to \Msharp
 \]
-를 만족한다고 가정한다.
-또한 $\gamma_M(a)\cup\gamma_M(b)\subseteq\gamma_M(a\sqcup b)$이다.
-이는 $\gamma_M$의 단조성에서 따른다.
-여기서는 대입과 조건 제한을 메모리 집합 위의 연산자로 직접 요약하므로,
-요약 메모리를 변수별 요약값의 곱공간으로 제한하지 않는다.
-별도의 식 분석기 $\mathrm{eval}_E^\sharp:M^\sharp\to\mathrm{Val}^\sharp$를 사용하려면
-$\ps{\mathbb Z}\rightleftarrows\mathrm{Val}^\sharp$와 그 안전성도 추가하면 되지만,
-아래 정의에는 필요하지 않다.
-Galois connection만으로 $\gamma_M(\bot^\sharp)=\emptyset$이 따르지는 않으며,
-그 성질은 사용하지 않는다.
+이며, $U,V\subseteq \Msharp$에 대해 다음 단조성과 안전성을 가정한다.
+\[
+\begin{aligned}
+ \bigl(\forall a\in U.\ \exists b\in V.\ a\sqsubseteq b\bigr)
+ &\ \Longrightarrow\
+ \aunions U\sqsubseteq\aunions V,\\
+ \bigcup_{a\in U}\gamma_M(a)
+ &\ \subseteq\gamma_M\left(\aunions U\right).
+\end{aligned}
+\]
+이항 요약 합집합은 $a\aunion b=\aunions\{a,b\}$로 정의한다.
+이 연산자와 그 가정은 요약 도메인의 일부이며,
+이후 $\bigsqcup$는 체인의 최소상한을 나타낸다.
+특히 점프 연산자의 레이블 매개변수는
+\[
+ G^\sharp_{E,k}:\Msharp\to \Msharp\qquad(k\in L_P)
+\]
+로 제한한다. 따라서 (9)의 점프 규칙도 $k\in L_P$인 경우에만 적용한다.
+$A^\sharp,W^\sharp,B^\sharp,G^\sharp$는 단조이고,
+각 대응 연산자 $T$에 대해 다음 안전성을 가정한다.
+\[
+ m\in\gamma_M(a)\ \land\ m'\in T(m)
+ \quad\Longrightarrow\quad
+ m'\in\gamma_M(T^\sharp(a)).                                    \tag{3}
+\]
+이는 집합 입력으로 올린 연산자에 대한 조건
+\[
+ \setlift{T}\circ\gamma_M\ \subseteq\ \gamma_M\circ T^\sharp
+\]
+과 동치이며, $T=\eta$일 때에는 항등함수의 성질로 성립한다.
 
 \section*{Exercise 1. Transitional style}
 
 \paragraph{1. 정적인 후속 관계.}
-각 command $C$의 정상 종료 후 이동할 위치를 $\cont(\lab(C))$라 하자.
-다음 순회 $\mathrm{build}(C,k)$는 프로그램 문법만 보고 이를 계산한다.
-먼저 $\cont(\lab(C))=k$로 두고, $C$의 형태에 따라 다음을 수행한다.
+실행 위치의 타입 \texttt{point}는 실행종료를 의미하는 $\halt$ 혹은 레이블이다.
+정상 종료 후 이동할 위치 $k$를 인자로 전달하면서 구문 트리에서 레이블 $l$을 찾는
+\[
+ \lookupcmd:
+ \Cmd\times\mathrm{point}\times\mathbb N
+ \longrightarrow\operatorname{option}(\Cmd\times\mathrm{point})
+\]
+를 재귀적으로 정의한다.
+먼저 $\lab(C)=l$이면
+$\lookupcmd(C,k,l)=\mathsf{Some}(C,k)$를 반환한다.
+그렇지 않으면 $C$의 형태에 따라 다음과 같이 검색한다.
+여기서 $u\mathbin{\triangleleft}v$는 $u$가 $\mathsf{Some}$이면 그 결과를,
+$\mathsf{None}$이면 $v$를 선택한다.
 \[
 \begin{array}{c|l}
- C&\text{재귀 호출}\\ \hline
- l:(x:=E),\ l:(*x:=E),\ l:(\mathsf{goto}\ E)&\text{없음}\\
- l:(C_1;C_2)&\mathrm{build}(C_1,\lab(C_2)),\
-                         \mathrm{build}(C_2,k)\\
- l:(\mathsf{if}\ E\ C_1\ C_2)&
-                         \mathrm{build}(C_1,k),\ \mathrm{build}(C_2,k)\\
- l:(\mathsf{repeat}\ C_0\ E)&\mathrm{build}(C_0,l)
+ C&\lab(C)\ne l\text{일 때의 }\lookupcmd(C,k,l)\\ \hline
+ t:(x:=E),\ t:(*x:=E),\ t:(\mathsf{goto}\ E)&\mathsf{None}\\
+ t:(C_1;C_2)&
+   \lookupcmd(C_1,\mathsf{At}(\lab(C_2)),l)
+   \mathbin{\triangleleft}\lookupcmd(C_2,k,l)\\
+ t:(\mathsf{if}\ E\ C_1\ C_2)&
+   \lookupcmd(C_1,k,l)
+   \mathbin{\triangleleft}\lookupcmd(C_2,k,l)\\
+ t:(\mathsf{repeat}\ C_0\ E)&
+   \lookupcmd(C_0,\mathsf{At}(t),l)
 \end{array}
 \]
-$\mathrm{build}(P,\halt)$를 실행한 후 후속 관계를 다음과 같이 정의한다.
-표의 --는 해당 관계가 정의되지 않음을 뜻한다.
+전체 프로그램의 검색 $\lookup$은 아래와 같다.
+계산 결과에서 $\Cmd$만 추출한 것을 $P_l$, $\mathrm{point}$만 추출한 것을 $\cont(P,l)$로 정의한다.
+\[
+ \lookup(P,l)=
+ \lookupcmd(P,\halt,l)
+\]
+
+
+
+$\lookup(P,l)=\mathsf{Some}(C,k)$이면 $\operatorname{next, nextTrue, nextFalse}$를 아래와 같이 정의할 수 있다.
 \[
 \begin{array}{c|c|c|c}
- P_l&\nxt(l)&\nt(l)&\nf(l)\\ \hline
- x:=E&\cont(l)&--&--\\
- *x:=E&\cont(l)&--&--\\
+ C&\nxt(l)&\nt(l)&\nf(l)\\ \hline
+ x:=E&k&--&--\\
+ *x:=E&k&--&--\\
  C_1;C_2&\lab(C_1)&--&--\\
  \mathsf{if}\ E\ C_1\ C_2&--&\lab(C_1)&\lab(C_2)\\
- \mathsf{repeat}\ C_0\ E&--&\lab(C_0)&\cont(l)\\
+ \mathsf{repeat}\ C_0\ E&--&\lab(C_0)&k\\
  \mathsf{goto}\ E&--&--&--\\
  \halt&--&--&--
 \end{array}                                                       \tag{4}
 \]
-각 관계는 필요한 위치에서만 단일값을 갖는다.
-$\cont(l)$은 문맥 정보이며, 특히 \texttt{goto}의 fall-through 간선이 아니다.
-\texttt{goto}의 실제 도착지는 메모리에 따라 정해지므로 $\nxt$로 미리 고정하지 않는다.
-
-예를 들어 다음처럼 모든 command에 레이블을 붙이자.
-\[
-\begin{split}
- 10:\bigl(&20:(\mathsf{repeat}\
-     30:(\mathsf{if}\ y\
-          40:(x:=x+(-1))\
-          50:(\mathsf{goto}\ 70))\ x);\\[-2mm]
-     &60:(70:(y:=1);\ 80:(z:=2))\bigr).
-\end{split}
-\]
-정적인 간선은
-$10\to20$, $20\xrightarrow{\T}30$, $20\xrightarrow{\Ff}60$,
-$30\xrightarrow{\T}40$, $30\xrightarrow{\Ff}50$,
-$40\to20$, $60\to70$, $70\to80$, $80\to\halt$이다.
-$50$에서 실행되는 점프의 대상은 $70$이며, 이후 $80,\halt$로 진행한다.
-$50$으로 되돌아오는 간선은 없다.
-예를 들어 $x=1,y=0$인 초기 메모리에서는
-$10,20,30,50,70,80,\halt$의 순서로 실행된다.
+프로그램에 없는 레이블에서도 세 함수는 모두 정의되지 않는다.
+$\halt$는 수치 레이블이 아니므로 검색의 입력이 될 수 없으며,
+표의 마지막 행은 그 위치에서 후속 전이가 없음을 나타낸다.
+특히 \texttt{goto}의 실제 도착지는 다음 절의 전이 규칙에서 식을 계산하여 정한다.
 
 \paragraph{2. 구체적인 한걸음 관계와 모둠의미.}
 $S=L\times M$에 대해 $\tr\subseteq S\times S$를 다음과 같이 정의한다.
+각 행은 오른쪽 조건이 성립할 때 표시된 전이를 허용한다.
 \[
-\begin{array}{c|l}
- P_l&\text{전이}\\ \hline
- x:=E&(l,m)\tr(\nxt(l),m[x\mapsto v])
-                    \quad(v\in\Eval_E(m))\\
- *x:=E&(l,m)\tr(\nxt(l),m[y\mapsto v])
-                    \quad(m(x)=\addr(y),\ v\in\Eval_E(m))\\
- C_1;C_2&(l,m)\tr(\nxt(l),m)\\
+\begin{array}{c|l|l}
+ P_l&\text{전이}&\text{조건}\\ \hline
+ x:=E&(l,m)\tr(\nxt(l),m')&m'\in A_{x,E}(m)\\
+ *x:=E&(l,m)\tr(\nxt(l),m')&m'\in W_{x,E}(m)\\
+ C_1;C_2&(l,m)\tr(\nxt(l),m')&m'\in\eta(m)\\
  \mathsf{if}\ E\ C_1\ C_2&
- (l,m)\tr(\nt(l),m)\quad(\Eval_E(m)\cap B_\T\ne\emptyset)\\
- & (l,m)\tr(\nf(l),m)\quad(\Eval_E(m)\cap B_\Ff\ne\emptyset)\\
+ (l,m)\tr(\nt(l),m')&m'\in B_{E,\T}(m)\\
+ &(l,m)\tr(\nf(l),m')&m'\in B_{E,\Ff}(m)\\
  \mathsf{repeat}\ C_0\ E&
- (l,m)\tr(\nt(l),m)\quad(\Eval_E(m)\cap B_\T\ne\emptyset)\\
- & (l,m)\tr(\nf(l),m)\quad(\Eval_E(m)\cap B_\Ff\ne\emptyset)\\
- \mathsf{goto}\ E&(l,m)\tr(k,m)\quad(k\in L_P\cap\Eval_E(m)).
+ (l,m)\tr(\nt(l),m')&m'\in B_{E,\T}(m)\\
+ &(l,m)\tr(\nf(l),m')&m'\in B_{E,\Ff}(m)\\
+ \mathsf{goto}\ E&(l,m)\tr(k,m')&m'\in G_{E,k}(m)
 \end{array}                                                       \tag{5}
 \]
 $\halt$에서는 전이가 없다.
-간선별 메모리 전달 연산자를 $T_{lk}:D\to D$라 쓰자.
-대입은 각각 $A,W$, sequence는 $\Id_D$, 참/거짓 간선은 $B_{E,\T},B_{E,\Ff}$,
-점프의 $k$ 간선은 $G_{E,k}$이다.
-같은 도착지에 여러 간선이 있으면 그 기여를 모두 합집합한다.
-이 표현으로 (5)는
+$B,G,\eta$의 결과는 공집합 또는 $\{m\}$이므로,
+해당 규칙에서 메모리는 바뀌지 않는다.
 \[
- \Step(X)_k=\bigcup_{l\to k}T_{lk}(X_l),\qquad
- X_l=\{m\mid(l,m)\in X\}                                         \tag{6}
+ \Step:\ps S\to\ps S,\qquad
+ \Step(X)=\{s'\in S\mid\exists s\in X.\ s\tr s'\}.                \tag{6}
 \]
-와 같다. 여기서 점프의 후보 간선은 모든 $k\in L_P$에 대해 만들며,
-$G_{E,k}$가 실제 가능한 메모리만 선택한다.
 
-$l_0=\lab(P)$에 대해
+이를 이용해 모둠의미를 정의할 수 있다.
 \[
- I=\{(l_0,m)\mid m\in M_0\},\qquad
- F:\ps S\to\ps S,\quad F(X)=I\cup\Step(X),\qquad
- \mathcal C=\lf F.                                               \tag{7}
+\begin{aligned}
+ I_P&=\{(\lab(P),m)\mid m\in M_0\},\qquad
+ F_P:\ps S\to\ps S,\quad F_P(X)=I_P\cup\Step(X),\\
+ \underbar{P}&=\lf F_P
+ =\bigcup_{n\ge0}F_P^n(\emptyset)
+ =\bigcup_{n\ge0}\Step^n(I_P).
+\end{aligned}                                                     \tag{7}
 \]
-$\Step$은 관계의 직접상(direct image)이므로 임의의 합집합을 보존하고,
-$F$는 단조이며 Scott 연속이다. 따라서
-\[
- \mathcal C=\bigcup_{n\ge0}F^n(\emptyset)
-            =\bigcup_{n\ge0}\Step^n(I).
-\]
-이는 유한한 실행 접두사에 등장하는 모든 상태를 모으므로,
-종료하는 실행뿐 아니라 무한 실행 중 도달하는 상태도 포함한다.
 
 \paragraph{3. 요약 한걸음 관계와 요약의미.}
-요약상태 공간은 $\mathcal A=L\to M^\sharp$이며 순서와 join은 점별로 정의한다.
+요약상태 공간은 $\AState=L\to \Msharp$이며,
+순서, 최하원소, 체인 최소상한과 요약 합집합을 점별로 정의한다.
+특히 $\bot_{\AState}(l)=\bot_M$이고
+$(a\aunion b)(l)=a(l)\aunion b(l)$이다.
 (2)를 레이블별로 올리면 다음 Galois connection을 얻는다.
 \[
 \begin{aligned}
@@ -248,357 +255,142 @@ $F$는 단조이며 Scott 연속이다. 따라서
  \alpha_S(X)\sqsubseteq a&\ \Longleftrightarrow\ X\subseteq\gamma_S(a).
 \end{aligned}                                                     \tag{8}
 \]
-우선 local pair의 관계
-$\atr_{\mathrm{loc}}\subseteq(L\times M^\sharp)\times(L\times M^\sharp)$를
+우선 $Q=L\times \Msharp$에서의 local pair 관계
+$\atr\subseteq Q\times Q$를 다음과 같이 정의한다.
+(5)의 $m'\in T(m)$을 $a'=T^\sharp(a)$로 바꾸면 같은 형태의 규칙을 얻는다.
 \[
- (l,a)\atr_{\mathrm{loc}}(k,T_{lk}^\sharp(a))\qquad(l\to k)          \tag{9}
+\begin{array}{c|l|l}
+ P_l&\text{요약 전이}&\text{조건}\\ \hline
+ x:=E&(l,a)\atr(\nxt(l),a')&a'=A^\sharp_{x,E}(a)\\
+ *x:=E&(l,a)\atr(\nxt(l),a')&a'=W^\sharp_{x,E}(a)\\
+ C_1;C_2&(l,a)\atr(\nxt(l),a')&a'=\eta^\sharp(a)=a\\
+ \mathsf{if}\ E\ C_1\ C_2&
+ (l,a)\atr(\nt(l),a')&a'=B^\sharp_{E,\T}(a)\\
+ &(l,a)\atr(\nf(l),a')&a'=B^\sharp_{E,\Ff}(a)\\
+ \mathsf{repeat}\ C_0\ E&
+ (l,a)\atr(\nt(l),a')&a'=B^\sharp_{E,\T}(a)\\
+ &(l,a)\atr(\nf(l),a')&a'=B^\sharp_{E,\Ff}(a)\\
+ \mathsf{goto}\ E&(l,a)\atr(k,a')&k\in L_P,\ a'=G^\sharp_{E,k}(a)
+\end{array}                                                       \tag{9}
 \]
-로 정의한다. 즉 (5)의 각 규칙에서 $A,W,\Id,B,G$를
-$A^\sharp,W^\sharp,\Id,B^\sharp,G^\sharp$로 바꾼다.
-점프는 모든 원래 레이블 $k\in L_P$에 대해
-$(l,a)\atr_{\mathrm{loc}}(k,G_{E,k}^\sharp(a))$를 만든다.
-참/거짓 및 점프 대상이 불가능함을 요약공간이 확인하지 못하면 여러 간선에
-동시에 전파해도 안전하다.
 
-이 관계를 모아서 실제 label map의 변환을 정의한다.
+이 관계의 결과를 도착 레이블별로 합쳐 label map의 변환을 정의한다.
 \[
 \begin{aligned}
- \Step^\sharp&:\mathcal A\to\mathcal A,&
- \Step^\sharp(a)(k)&=\bigsqcup_{l\to k}T_{lk}^\sharp(a(l)),\\
- I^\sharp&=\alpha_S(I),&
- F^\sharp(a)&=I^\sharp\sqcup\Step^\sharp(a),&
- \mathcal C^\sharp&=\lf F^\sharp .
+ \Step^\sharp&:\AState\to\AState,\qquad
+ \Step^\sharp(a)(k)=
+ \aunions\{b\mid\exists l\in L_P.\ (l,a(l))\atr(k,b)\},\\
+ I_P^\sharp&=\alpha_S(I_P),\qquad
+ F_P^\sharp(a)=I_P^\sharp\aunion\Step^\sharp(a),\\
+ \underbar{P}^\sharp&=\bigsqcup_{n\ge0}(F_P^\sharp)^n(\bot_{\AState}).
 \end{aligned}                                                     \tag{10}
 \]
-빈 join은 $\bot^\sharp$이다.
-$M^\sharp$가 완전격자이고 모든 전달함수가 단조이므로
-$\mathcal A$도 완전격자이며 $F^\sharp$의 최소고정점이 존재한다.
-일반적인 요약공간에서 유한 반복으로 계산된다는 주장은 하지 않는다.
+각 요약 전이 연산자와 요약 합집합의 단조성에 의해 $F_P^\sharp$도 단조이다.
+따라서 (10)의 반복열은 증가하는 체인이고 그 최소상한이 존재한다.
+$F_P^\sharp$가 추가로 $\omega$-연속이면
+$\underbar{P}^\sharp=\lf F_P^\sharp$이다.
 
-과제의 관계 타입과 partition/join 표기를 구별하면 다음과 같다.
-$Q=L\times M^\sharp$로 두고,
+$Q=L\times \Msharp$에 대해, $\Step^\sharp$을 이렇게 정의할 수도 있다.
 \[
 \begin{aligned}
- \Graph &: \mathcal A\to\ps Q,&
- \Graph(a)&=\{(l,a(l))\mid l\in L\},\\
- \mathrm{Post}^\sharp&:\ps Q\to\ps Q,&
- \mathrm{Post}^\sharp(U)&=\{q'\mid \exists q\in U.\ q\atr_{\rm loc}q'\},\\
- \pi&:\ps Q\to(L\to\ps{M^\sharp}),&
- \pi(U)(k)&=\{b\mid(k,b)\in U\},\\
- J&:(L\to\ps{M^\sharp})\to\mathcal A,&
- J(B)(k)&=\bigsqcup B(k).
+ \breve{\mathcal P}(\atr)&:\AState\to\ps Q,&
+ \breve{\mathcal P}(\atr)(a)&=
+ \{q'\in Q\mid\exists l\in L.\ (l,a(l))\atr q'\},\\
+ \pi&:\ps Q\to\ps{L\times\ps{\Msharp}},&
+ \pi(U)&=\{(k,\{b\mid(k,b)\in U\})\mid k\in L\},\\
+ \mathcal P(\Id,\aunion)&:\ps{L\times\ps{\Msharp}}\to\AState,&
+ \mathcal P(\Id,\aunion)(\mathcal B)(k)
+   &=\aunions\left(\bigcup\{Y\subseteq \Msharp\mid(k,Y)\in\mathcal B\}\right).
 \end{aligned}
 \]
-그러면 $\Step^\sharp=J\circ\pi\circ\mathrm{Post}^\sharp\circ\Graph$이다.
-이는 강의의 $\mathcal P(\Id,\sqcup)\circ\pi\circ
-\breve{\mathcal P}(\atr_{\rm loc})$를 타입까지 명시한 것이다.
-과제에 적힌 map-to-map 관계 $\atr\subseteq\mathcal A\times\mathcal A$는
-$a\atr a'$ iff $a'=\Step^\sharp(a)$로 정의할 수 있다.
-이 map 관계와 partition 이전의 local 관계를 같은 타입으로 혼동하지 않는다.
+\[
+ \Step^\sharp
+ =\mathcal P(\Id,\aunion)\circ\pi\circ\breve{\mathcal P}(\atr).
+\]
+
 
 \paragraph{4--5. 안전성.}
-\begin{lemma}[Local edge coverage]
-$m\in\gamma_M(a)$이고 $(l,m)\tr(k,m')$이면,
-해당 간선 $l\to k$에 대해 $m'\in\gamma_M(T_{lk}^\sharp(a))$이다.
+\begin{lemma}[Local simulation]
+$m\in\gamma_M(a)$이고 $(l,m)\tr(k,m')$이면, 어떤 $b\in \Msharp$가 존재하여
+\[
+ (l,a)\atr(k,b)\quad\text{이고}\quad m'\in\gamma_M(b)
+\]
+이다.
 \end{lemma}
 \begin{proof}
-대입이면 $m'\in A_{x,E}(\gamma_M(a))$이므로 (3)에 의해 성립한다.
-간접대입도 주소와 값이 모두 $m$에서 계산된다.\par
-따라서 $m'\in W_{x,E}(\gamma_M(a))$이고 (3)을 적용한다.
-Sequence이면 $m'=m$이고 전달함수가 항등함수이다.
-조건문과 repeat의 참 간선이면
-$m\in B_{E,\T}(\gamma_M(a))$이며, 거짓 간선도 $B_{E,\Ff}$에 대해 같다.
-마지막으로 점프이면 $k\in L_P\cap\Eval_E(m)$이므로
-$m'=m\in G_{E,k}(\gamma_M(a))$이고 $G^\sharp$의 안전성으로 결론을 얻는다.
-$\halt$에서는 검사할 전이가 없다.
+(5)의 전이 규칙에 따라 경우를 나눈다.
+대입이면 $m'\in A_{x,E}(m)$이므로 (3)을 적용하고
+$b=A^\sharp_{x,E}(a)$로 잡는다.
+간접대입도 $m'\in W_{x,E}(m)$에 (3)을 적용하여
+$b=W^\sharp_{x,E}(a)$로 잡는다.
+Sequence이면 $m'\in\eta(m)$이므로 $m'=m$이고 $b=a$로 충분하다.
+조건문과 repeat의 참 가지에서는 $m'\in B_{E,\T}(m)$이므로
+$b=B^\sharp_{E,\T}(a)$로 잡으며, 거짓 가지도 $B_{E,\Ff}$에 대해 같다.
+점프이면 $k\in L_P$, $m'\in G_{E,k}(m)$이므로
+$b=G^\sharp_{E,k}(a)$로 잡는다.
+각 경우 (9)에 대응하는 요약 전이가 있으며, $\halt$에서는 구체 전이가 없다.
 \end{proof}
 
-관계의 powerset lifting 자체에 대한 과제의 조건도 명확히 쓸 수 있다.
+요약 합집합 이전의 한걸음 결과에 대한 안전성도 명시할 수 있다.
 $\Gamma:\ps Q\to\ps S$를
 $\Gamma(U)=\{(l,m)\mid\exists(l,a)\in U.\ m\in\gamma_M(a)\}$로 두면,
 위 렘마에서
 \[
- \Step\circ\Gamma\ \subseteq\
- \Gamma\circ\mathrm{Post}^\sharp                                \tag{11}
+ \Step\circ\gamma_S\ \subseteq\
+ \Gamma\circ\breve{\mathcal P}(\atr)                             \tag{11}
 \]
-를 얻는다. 이는 local 한걸음 관계의
-$\breve{\mathcal P}(\tr)\circ\gamma
- \subseteq\gamma\circ\breve{\mathcal P}(\atr_{\rm loc})$
-조건이다. Join은 포함관계를 더 넓힐 뿐이다.
+를 얻는다. 양변의 타입은 $\AState\to\ps S$이다.
+즉 요약 상태맵을 구체화하여 한걸음 실행한 결과는,
+요약 전이 결과의 집합을 구체화한 결과에 포함된다.
+Partition 후 요약 합집합을 적용할 때에도 각 기여의 구체화가 보존됨은
+요약 합집합의 안전성에서 따른다.
 
 \begin{theorem}[Transitional analysis의 안전성]
-모든 $a\in\mathcal A$에 대해
+모든 $a\in\AState$에 대해
 $\Step(\gamma_S(a))\subseteq\gamma_S(\Step^\sharp(a))$이며,
 \[
-             \mathcal C\subseteq\gamma_S(\mathcal C^\sharp).
+             \underbar{P}\subseteq\gamma_S(\underbar{P}^\sharp).
 \]
 \end{theorem}
 \begin{proof}
 $(k,m')\in\Step(\gamma_S(a))$를 잡으면 어떤 $l,m$에 대해
 $m\in\gamma_M(a(l))$, $(l,m)\tr(k,m')$이다.
-렘마와 join의 상한 성질로
+Local simulation 렘마로 어떤 $b$에 대해
+$(l,a(l))\atr(k,b)$와 $m'\in\gamma_M(b)$를 얻는다.
+(10)에서 합치는 결과의 집합에 $b$가 속하므로, 요약 합집합의 안전성으로
 \[
- m'\in\gamma_M(T_{lk}^\sharp(a(l)))
-       \subseteq\gamma_M(\Step^\sharp(a)(k)).
+ m'\in\gamma_M(b)\subseteq\gamma_M(\Step^\sharp(a)(k)).
 \]
-또 $I\subseteq\gamma_S(I^\sharp)$이므로
-$F(\gamma_S(a))\subseteq\gamma_S(F^\sharp(a))$이다.
-$a_*=\lf F^\sharp$라 두면
-$F(\gamma_S(a_*))\subseteq\gamma_S(F^\sharp(a_*))=\gamma_S(a_*)$이다.
-따라서 $\gamma_S(a_*)$는 $F$의 pre-fixed point이고,
-최소고정점의 최소성에 의해 $\lf F\subseteq\gamma_S(a_*)$이다.
-이 증명은 $\gamma_M$가 join을 보존한다거나 bottom이 공집합을 뜻한다고 가정하지 않는다.
+또 $I_P\subseteq\gamma_S(I_P^\sharp)$와 이항 요약 합집합의 안전성으로
+\[
+ F_P(\gamma_S(a))\subseteq\gamma_S(F_P^\sharp(a))
+\]
+를 얻는다.
+
+$X_n=F_P^n(\emptyset)$, $a_n=(F_P^\sharp)^n(\bot_{\AState})$라 두고
+$X_n\subseteq\gamma_S(a_n)$을 $n$에 대한 귀납법으로 보인다.
+$n=0$에서는 $X_0=\emptyset$이므로 성립한다.
+귀납 가정, $F_P$의 단조성, 위의 한걸음 안전성을 차례로 적용하면
+\[
+ X_{n+1}=F_P(X_n)
+ \subseteq F_P(\gamma_S(a_n))
+ \subseteq\gamma_S(F_P^\sharp(a_n))
+ =\gamma_S(a_{n+1})
+\]
+이다.
+각 $n$에 대해 $a_n\sqsubseteq\bigsqcup_j a_j=\underbar{P}^\sharp$이므로,
+$\gamma_S$의 단조성과 (7), (10)에 의해
+\[
+ \underbar{P}=\bigcup_{n\ge0}X_n
+ \subseteq\gamma_S\left(\bigsqcup_{n\ge0}a_n\right)
+ =\gamma_S(\underbar{P}^\sharp).
+\]
+요약 반복열에는 $F_P^\sharp$의 단조성으로 충분하며,
+극한에서의 포함관계에는 $\gamma_S$의 단조성을 사용한다.
 \end{proof}
 
-\section*{Exercise 2. Definitional interpreter}
+Exercise 1의 Rocq 구현은 다음 저장소에서 확인할 수 있다:
+\url{https://github.com/Yeonwoo-Nam/ProgramAnalysis_26-2_Project}.
 
-\paragraph{1. 실행기의 문맥과 모둠 실행기.}
-\texttt{goto}가 있으므로 command의 의미는 고정된 전체 프로그램 $P$의 문맥에 의존한다.
-여기서 $\mathcal I_P(C)$는 $C$에 진입한 후 \emph{$P$의 종료점까지}
-실행하여 얻는 최종 메모리들의 집합을 반환한다.
-따라서 내부 command를 독립적인 부분 프로그램으로 해석하지 않는다.
-이 해석에서
-$\mathcal I_P(C_1;C_2)=\mathcal I_P(C_2)\circ\mathcal I_P(C_1)$로 놓으면
-$C_2$를 중복 실행할 수 있으므로 그 식을 사용하지 않는다.
-
-$\operatorname{Mon}(D,D)$는 포함관계에 대한 단조함수들의 완전격자이며,
-순서와 모든 join은 점별이다.
-\[
- \mathcal H=\mathrm{Cmd}_P\to\operatorname{Mon}(D,D).
-\]
-$H\in\mathcal H$에 대해 종료점 호출을 별도로
-\[
- \widehat H(k)=
- \begin{cases}H(P_k)&k\in L_P,\\ \Id_D&k=\halt\end{cases}
-                                                                    \tag{12}
-\]
-로 정의한다. 따라서 $\halt$를 새 command로 추가할 필요가 없다.
-실행기 방정식의 함수 $\Phi:\mathcal H\to\mathcal H$는 다음과 같다.
-\[
-\begin{array}{c|l}
- C=P_l&(\Phi H)(C)(X)\\ \hline
- x:=E&\widehat H(\nxt(l))(A_{x,E}(X))\\
- *x:=E&\widehat H(\nxt(l))(W_{x,E}(X))\\
- C_1;C_2&H(C_1)(X)\\
- \mathsf{if}\ E\ C_1\ C_2&
- H(C_1)(B_{E,\T}(X))\ \cup\ H(C_2)(B_{E,\Ff}(X))\\
- \mathsf{repeat}\ C_0\ E&
- H(C_0)(B_{E,\T}(X))\ \cup\
-            \widehat H(\cont(l))(B_{E,\Ff}(X))\\
- \mathsf{goto}\ E&
- \displaystyle\bigcup_{k\in L_P}H(P_k)(G_{E,k}(X)).
-\end{array}                                                        \tag{13}
-\]
-본문 $C_0$의 정상 후속 레이블은 (4)에 의해 다시 $l$이다.
-모든 의미 연산자의 타입은 (1)의 $D\to D$,
-$\Id_D:D\to D$, $\cup:D\times D\to D$이고,
-재귀 호출 $H(C)$ 역시 $D\to D$이다.
-식의 보조 의미 $\Eval_E$와 $\mathrm{eval}_E$의 타입은 공통 설정에서 정의하였다.
-
-이는 과제에서 요구하는 command-indexed 함수 공간을 그대로 사용한다.
-전체 문법 $\mathrm{Cmd}$에 대한 타입
-$\mathrm{Cmd}\to D\to D$로 쓰고 싶으면,
-$P$에 없는 command에서는 $\Phi(H)(C)=\lambda X.\emptyset$으로 확장하면 된다.
-그 좌표는 $P$의 결과에 영향을 주지 않는다.
-
-\begin{lemma}[실행기 최소고정점의 존재와 의미]
-$\Phi$는 Scott 연속이고
-\[
- \mathcal I_P=\lf\Phi=\bigsqcup_{n\ge0}\Phi^n(\bot_{\mathcal H}),
- \qquad \bot_{\mathcal H}(C)(X)=\emptyset.                         \tag{14}
-\]
-또한 모든 $C,X$에 대해
-\[
- \mathcal I_P(C)(X)=
- \{m'\mid \exists m\in X.\ (\lab(C),m)\tr^*(\halt,m')\}.             \tag{15}
-\]
-\end{lemma}
-\begin{proof}
-(13)의 각 입력 전달함수는 고정되어 있고 단조이다.
-재귀 환경 $H$는 그 고정된 입력에 적용되는 형태로만 등장한다.
-따라서 증가하는 directed family $\{H_i\}$에 대해 각 호출에서
-$(\bigsqcup_iH_i)(C)(Y)=\bigcup_iH_i(C)(Y)$이며,
-이를 (13)에 대입하면
-$\Phi(\bigsqcup_iH_i)=\bigsqcup_i\Phi(H_i)$이다.
-종료점의 항등함수는 환경과 무관한 상수이다.
-그러므로 Kleene 정리를 적용할 수 있다.
-
-$H_n=\Phi^n(\bot_{\mathcal H})$라 하자.
-$n\ge1$일 때 $H_n(C)(X)$는 $\lab(C)$에서 시작하여
-최대 $n$번 전이한 뒤 처음 $\halt$에 도착하는 경로의 최종 메모리 집합이다.
-이는 $n$에 대한 귀납법으로 보인다.
-첫 단계의 전달함수는 (5)의 첫 전이를 정확히 나타내고,
-후속 위치가 command이면 $H_{n-1}$이 남은 경로를 처리한다.
-후속 위치가 $\halt$이면 (12)의 항등함수가 즉시 결과를 반환한다.
-$n=0$에서는 어떤 command의 결과도 없다.
-이를 모든 $n$에 대해 합집합하면 (15)이다.
-\end{proof}
-
-따라서 주어진 전체 프로그램의 모둠의미는
-$\mathcal C_P=(\lf\Phi)(P):D\to D$이다.
-종료하지 않는 실행은 최종 메모리를 만들지 않는다.
-이는 Exercise 1의 중간 도달 상태를 모두 모으는 의미와 구별된다.
-
-\paragraph{2--3. 요약 실행기.}
-요약 실행기 공간과 종료점 호출을
-\[
- \mathcal H^\sharp=\mathrm{Cmd}_P\to
-       \operatorname{Mon}(M^\sharp,M^\sharp),\qquad
- \widehat K(k)=
- \begin{cases}K(P_k)&k\in L_P,\\ \Id_{M^\sharp}&k=\halt\end{cases}
-                                                                    \tag{16}
-\]
-로 정의한다.
-$\Phi^\sharp:\mathcal H^\sharp\to\mathcal H^\sharp$는
-(13)과 같은 모양으로 정의한다.
-\[
-\begin{array}{c|l}
- C=P_l&(\Phi^\sharp K)(C)(a)\\ \hline
- x:=E&\widehat K(\nxt(l))(A^\sharp_{x,E}(a))\\
- *x:=E&\widehat K(\nxt(l))(W^\sharp_{x,E}(a))\\
- C_1;C_2&K(C_1)(a)\\
- \mathsf{if}\ E\ C_1\ C_2&
- K(C_1)(B^\sharp_{E,\T}(a))\ \sqcup\
- K(C_2)(B^\sharp_{E,\Ff}(a))\\
- \mathsf{repeat}\ C_0\ E&
- K(C_0)(B^\sharp_{E,\T}(a))\ \sqcup\
-        \widehat K(\cont(l))(B^\sharp_{E,\Ff}(a))\\
- \mathsf{goto}\ E&
- \displaystyle\bigsqcup_{k\in L_P}K(P_k)(G^\sharp_{E,k}(a)).
-\end{array}                                                        \tag{17}
-\]
-대입, store, guard, target 연산자 및 모든 재귀 호출의 요약 입출력 타입은
-$M^\sharp\to M^\sharp$이며,
-join의 타입은 $M^\sharp\times M^\sharp\to M^\sharp$이다.
-종료점의 요약 항등함수도 같은 타입이다.
-
-$\mathcal H^\sharp$는 점별 순서의 완전격자이다.
-$\Phi^\sharp$는 환경 인자에 대해 Scott 연속이다.
-실제로 (17)의 재귀 호출 입력은 $K$와 무관하게 고정되고,
-유한 join과 directed supremum은 서로 교환된다.
-따라서 여기서는 개별 $T^\sharp$의 Scott 연속성까지 요구하지 않고
-단조성만으로 충분하다.
-\[
- \mathcal I_P^\sharp=\lf\Phi^\sharp,\qquad
- \mathcal C_P^\sharp=(\lf\Phi^\sharp)(P):
-                  M^\sharp\to M^\sharp.                         \tag{18}
-\]
-이는 과제의 $F,F^\sharp$를 각각 $\Phi,\Phi^\sharp$로 쓴 것이다.
-최소고정점이 존재한다는 사실은 유한 번에 계산할 수 있다는 뜻은 아니다.
-이 단계에서는 구체적인 도메인이나 widening을 정하지 않는다.
-
-\paragraph{4--5. 실행기의 안전성.}
-환경 사이의 관계 $H\mathrel{\mathcal R}K$를
-\[
- \forall C\in\mathrm{Cmd}_P,\ \forall a\in M^\sharp.\quad
- H(C)(\gamma_M(a))\subseteq\gamma_M(K(C)(a))                       \tag{19}
-\]
-로 정의한다. 종료점의 두 항등함수도 같은 관계를 만족한다.
-
-\begin{lemma}[환경 방정식의 simulation]
-$H\mathrel{\mathcal R}K$이면
-$\Phi(H)\mathrel{\mathcal R}\Phi^\sharp(K)$이다.
-\end{lemma}
-\begin{proof}
-임의의 간선 전달함수 $T$와 후속 위치 $k$에 대해,
-(3), $\widehat H(k)$의 단조성, (19)를 차례로 적용하면
-\[
-\begin{aligned}
- \widehat H(k)(T(\gamma_M(a)))
- &\subseteq \widehat H(k)(\gamma_M(T^\sharp(a)))\\
- &\subseteq \gamma_M(\widehat K(k)(T^\sharp(a))).
-\end{aligned}                                                     \tag{20}
-\]
-$k=\halt$일 때 두 번째 포함관계는 항등함수의 경우이다.
-직접대입과 간접대입은 각각 $T=A,W$로 (20)을 적용한다.
-Sequence는 (19)를 첫 command에 직접 적용한다.
-조건문은 $T=B_{E,\T},B_{E,\Ff}$에 (20)을 각각 적용하고,
-$\gamma_M(u)\cup\gamma_M(v)\subseteq\gamma_M(u\sqcup v)$를 사용한다.
-Repeat도 참 가지의 본문 호출과 거짓 가지의 후속 호출에 같은 논증을 적용한다.
-Goto는 각 $k\in L_P$에 대해 $T=G_{E,k}$로 (20)을 적용한 후 합집합한다.
-모든 요약 기여는 최종 join 이하이므로 $\gamma_M$의 단조성에 의해 결론을 얻는다.
-\end{proof}
-
-\begin{theorem}[Definitional interpreter의 안전성]
-모든 프로그램 $P$와 $a\in M^\sharp$에 대해
-\[
- \mathcal C_P(\gamma_M(a))
-       \subseteq\gamma_M(\mathcal C_P^\sharp(a)).
-                                                                    \tag{21}
-\]
-따라서
-$\mathcal C_P(M_0)\subseteq
- \gamma_M(\mathcal C_P^\sharp(\alpha_M(M_0)))$이다.
-\end{theorem}
-\begin{proof}
-$K_*=\lf\Phi^\sharp$라 두자.
-$\bot_{\mathcal H}\mathrel{\mathcal R}K_*$는 공집합의 포함관계로 성립한다.
-Simulation 렘마와 $\Phi^\sharp(K_*)=K_*$를 사용한 귀납법으로
-$\Phi^n(\bot_{\mathcal H})\mathrel{\mathcal R}K_*$가 모든 $n$에 대해 성립한다.
-그러므로 모든 $C,a$에 대해
-\[
- \mathcal I_P(C)(\gamma_M(a))
- =\bigcup_{n\ge0}\Phi^n(\bot_{\mathcal H})(C)(\gamma_M(a))
- \subseteq\gamma_M(K_*(C)(a)).
-\]
-$C=P$를 대입하면 (21)이다.
-마지막 결론은 $M_0\subseteq\gamma_M(\alpha_M(M_0))$ 및
-$\mathcal C_P$의 단조성에서 따른다.
-이 증명에서는 $\gamma_M$와 무한 join을 교환하지 않는다.
-\end{proof}
-
-\paragraph{두 의미의 일치.}
-(15)에 의해 같은 초기집합 $M_0$에 대해
-\[
- \mathcal C_P(M_0)=
- \{m\mid(\halt,m)\in
-       \operatorname{Reach}_P(M_0)\},\qquad
- \operatorname{Reach}_P(M_0)=\lf(X\mapsto I\cup\Step(X)).
-\]
-따라서 Exercise 2는 Exercise 1의 도달 상태 중 정상 종료점의 메모리를 정확히 추출한다.
-무한 실행은 오른쪽의 중간 상태에는 기여하지만 $\halt$에는 기여하지 않는다.
-
-\paragraph{검산 및 AI 사용 기록.}
-이 문서의 설계와 서술에 AI를 사용하였다.
-아래는 수식에 대한 검산이며, 유한 실행 예시를 전체 프로그램에 대한 안전성 증명으로
-대체하지 않는다. 최종 안전성의 근거는 위의 경우별 simulation과 최소고정점 논증이다.
-\begin{itemize}[leftmargin=*,nosep]
- \item \textbf{요구사항 대조:}
- \texttt{project1.pdf}의 두 exercise에 대해 후속 관계, 한걸음 관계,
- 실행기 방정식, 요약 연산자 타입, 안전성 조건을 각각 대응시켰다.
- \texttt{project.pdf}의 command 6종과 식 9종이 모두 정의에 나타남을 확인하였다.
- \item \textbf{포인터 대입:}
- $m(p)=\addr(x)$일 때 $W_{p,E}(\{m\})$는 $x$만 갱신한다.
- 특히 $E=*p+1$이면 $m[x\mapsto m(x)+1]$을 얻는다.
- 이는 주소와 우변을 모두 갱신 전에 계산하는 (5)와 같다.
- \item \textbf{메모리 상관관계:}
- $m_0(x)=0,m_1(x)=10$이면
- $A_{x,x+1}(\{m_0,m_1\})$의 $x$값은 $1,11$이다.
- 메모리별 평가를 유지하므로 두 입력 사이의 다른 변수값을 섞지 않는다.
- \item \textbf{입력과 loop:}
- $\Eval_{\mathsf{readInt}+\mathsf{readInt}}(m)=\mathbb Z$이며,
- $\mathsf{readInt}$ 조건은 참/거짓 두 가지가 모두 가능하다.
- $\mathsf{repeat}\ C\ 0$은 본문을 실행하지 않고 후속 위치로 이동한다.
- $\mathsf{repeat}\ (x:=x)\ 1$은 루프 위치에 도달할 수 있지만 정상 종료 결과는 없다.
- \item \textbf{비지역 점프:}
- (4)의 예에서 $x=1,y=0$일 때 $10,20,30,50,70,80,\halt$의 경로를 확인하였다.
- 실행기에서도 $H(P_{70})$가 $80$까지 포함하는 residual execution이므로
- $70$의 부분 트리만 실행하고 멈추거나 $50$으로 복귀하지 않는다.
- \item \textbf{고정점 및 타입:}
- reachability에는 상태집합의 최소고정점,
- interpreter에는 command별 함수 환경의 최소고정점을 사용하였다.
- local pair 관계와 label map 변환을 분리하고 $\Graph,\pi,J$의 타입을 명시하였다.
- $\gamma_M(\bot^\sharp)=\emptyset$ 및 $\gamma_M$의 join 보존을 사용하지 않음을
- 두 안전성 증명의 각 단계에서 확인하였다.
-\end{itemize}
-
-\paragraph{참고 자료.}
-\texttt{project1.pdf}; \texttt{project.pdf}.\\
-\texttt{lecture slide/slide8.pdf}, PDF pp.~5--9, 17--22, 33--35, 38--44.\\
-\texttt{lecture slide/slide7.pdf}, PDF pp.~13--17.\\
-\texttt{lecture slide/slide5.pdf}, PDF p.~6.
-서식과 저자 표기는 \texttt{hw2.tex}를 따랐다.
-Slide 7의 PDF p.~16에서 조건문의 두 번째 가지는 첫 번째 command가 아니라
-두 번째 command에 적용되도록 정의하였다.
 
 \end{document}

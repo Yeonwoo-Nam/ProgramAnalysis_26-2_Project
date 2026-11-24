@@ -4,3 +4,17 @@
 *.log
 *.fls
 *.gz
+*.out
+
+*.vo
+*.vos
+*.vok
+*.glob
+.*.aux
+.lia.cache
+.Makefile.coq.d
+Makefile.coq
+Makefile.coq.conf
+_CoqProject.tmp
+
+_CoqProject

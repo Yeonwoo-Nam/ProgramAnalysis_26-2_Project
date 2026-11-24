@@ -1,0 +1,40 @@
+% Notation for project1_solution.tex; load after the AMS packages.
+
+% Theorem environments.
+\newtheorem{theorem}{정리}
+\newtheorem{lemma}{렘마}
+
+% Sets and semantic domains.
+\newcommand{\ps}[1]{\mathcal P(#1)}
+\newcommand{\Cmd}{\mathrm{Cmd}}
+\newcommand{\Msharp}{M^\sharp}
+\newcommand{\AState}{\mathcal A}
+
+% Control-flow metadata and syntax lookup.
+\newcommand{\lab}{\operatorname{label}}
+\newcommand{\halt}{\mathsf{halt}}
+\newcommand{\nxt}{\operatorname{next}}
+\newcommand{\nt}{\operatorname{nextTrue}}
+\newcommand{\nf}{\operatorname{nextFalse}}
+\newcommand{\cont}{\operatorname{cont}}
+\newcommand{\lookup}{\operatorname{lookup}}
+\newcommand{\lookupcmd}{\operatorname{lookup\_cmd}}
+
+% Semantic operators and relations.
+\newcommand{\lf}{\operatorname{lfp}}
+\newcommand{\Eval}{\operatorname{Eval}}
+\newcommand{\evalset}{\mathrm{eval}}
+\newcommand{\Id}{\operatorname{id}}
+\newcommand{\addr}{\operatorname{addr}}
+\newcommand{\Step}{\operatorname{Step}}
+\newcommand{\Mon}{\operatorname{Mon}}
+\newcommand{\Reach}{\operatorname{Reach}}
+\newcommand{\tr}{\hookrightarrow}
+\newcommand{\atr}{\hookrightarrow^\sharp}
+\newcommand{\T}{\mathsf T}
+\newcommand{\Ff}{\mathsf F}
+
+% Set lifting and abstract union (distinct from chain suprema).
+\newcommand{\setlift}[1]{\overline{#1}}
+\newcommand{\aunion}{\cup^\sharp}
+\newcommand{\aunions}{\bigcup\nolimits^\sharp}
