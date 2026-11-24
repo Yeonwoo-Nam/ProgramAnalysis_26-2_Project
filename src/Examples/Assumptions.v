@@ -1,6 +1,8 @@
 (* Re-run independently with [make audit]; every result should be closed. *)
 From DAnalyzer.Abstract Require Import TransitionSound.
+From DAnalyzer.Abstract Require Import InterpreterSound.
 From DAnalyzer.Examples Require Import Examples.
+From DAnalyzer.Examples Require Import InterpreterExamples.
 From DAnalyzer.Examples Require Import NonLatticeDomain.
 
 Print Assumptions iterate_chain.
@@ -47,3 +49,24 @@ Print Assumptions integer_store.
 Print Assumptions fork_no_common_upper.
 Print Assumptions fork_union_is_not_an_upper_bound.
 Print Assumptions nonlattice_soundness.
+Print Assumptions interpreter_body_mono.
+Print Assumptions interpreter_body_continuous.
+Print Assumptions interpret_fixed.
+Print Assumptions interpret_input_mono.
+Print Assumptions interpret_returns.
+Print Assumptions interpret_natural_extension.
+Print Assumptions outputs_reach.
+Print Assumptions interpreter_body_sharp_mono.
+Print Assumptions interpret_sharp_fixed.
+Print Assumptions interpret_sharp_least.
+Print Assumptions interpreter_body_sound.
+Print Assumptions interpreter_iterate_sound.
+Print Assumptions interpreter_sound.
+Print Assumptions interpreter_gamma_sound.
+Print Assumptions alpha_outputs_sound.
+Print Assumptions interpreter_interior_jump.
+Print Assumptions interpreter_divergence.
+Print Assumptions interpreter_false_repeat.
+Print Assumptions interpreter_missing_target.
+Print Assumptions interpreter_input_jump.
+Print Assumptions instantiated_interpreter_soundness.

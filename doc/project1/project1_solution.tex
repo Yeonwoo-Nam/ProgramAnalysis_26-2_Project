@@ -13,6 +13,10 @@
 \begin{document}
 \maketitle
 
+본 Project의 Rocq 구현은 다음 저장소에서 확인할 수 있다:
+
+\url{https://github.com/Yeonwoo-Nam/ProgramAnalysis_26-2_Project}.
+
 \paragraph{공통 설정.}
 분석할 프로그램 $P$를 고정하고, 그 안의 모든 labeled command의 집합을
 $\Cmd_P$, 원래 레이블의 유한집합을 $L_P\subseteq\mathbb N$이라 하자.
@@ -21,12 +25,12 @@ $\Cmd_P$, 원래 레이블의 유한집합을 $L_P\subseteq\mathbb N$이라 하�
 $L=L_P\cup\{\halt\}$로 둔다. $\halt$는 command나 \texttt{goto}의 대상이 아니다.
 
 변수 이름의 타입 $\mathrm{Var}$에 대해 주소에 해당하는 함수 $\addr:\mathrm{Var}\to\mathbb Z$를 고정한다.
-값, 메모리, 모둠 메모리 공간은 각각
+값과 메모리 공간은 각각
 \[
- \mathrm{Val}=\mathbb Z,\qquad M=\mathbb Z\to\mathbb Z,\qquad D=\ps M
+ \mathrm{Val}=\mathbb Z,\qquad M=\mathbb Z\to\mathbb Z
 \]
 이다.
-구체 공간 $D$는 포함관계, 최하원소 $\emptyset$, 체인의 최소상한인 집합의 합집합으로
+구체 공간 $\ps{M}$는 포함관계, 최하원소 $\emptyset$, 체인의 최소상한인 집합의 합집합으로
 CPO를 이룬다. 구체 결과를 합칠 때에는 이 일반적인 집합의 합집합을 사용한다.
 메모리 $m\in M$은 정수 주소 $a$의 값을 $m(a)$로 주는 함수이다.
 음수를 포함한 모든 정수 주소에서 읽기와 쓰기가 정의되며,
@@ -63,7 +67,7 @@ $\mathsf{repeat}\ C\ E$는 $\mathsf{while}\ E\ C$와 같은 의미로 정의한�
 역참조할 주소는 $m(\addr(x))\in\mathbb Z$이므로,
 \texttt{*x}의 값은 항상 정의된다.
 집합 입력에 대한 자연스러운 확장은
-$\evalset_E(X)=\bigcup_{m\in X}\Eval_E(m):D\to\ps{\mathbb Z}$이다.
+$\evalset_E(X)=\bigcup_{m\in X}\Eval_E(m):\ps{M}\to\ps{\mathbb Z}$이다.
 
 \paragraph{의미 연산자.}
 $b\in\{\T,\Ff\}$에 대해 $B_\T=\mathbb Z\setminus\{0\}$, $B_\Ff=\{0\}$으로 두고,
@@ -82,22 +86,22 @@ $b\in\{\T,\Ff\}$에 대해 $B_\T=\mathbb Z\setminus\{0\}$, $B_\Ff=\{0\}$으로 �
  \end{cases}.
 \end{aligned}                                                    \tag{1}
 \]
-$A,W,B,G:M\to D$이며, 메모리를 그대로 두는 연산자는
-$\eta:M\to D$, $\eta(m)=\{m\}$이다.
+$A,W,B,G:M\to \ps{M}$이며, 메모리를 그대로 두는 연산자는
+$\eta:M\to \ps{M}$, $\eta(m)=\{m\}$이다.
 집합 입력에 대한 연산자는 이들로부터
 \[
- \setlift{T}:D\to D,\qquad
+ \setlift{T}:\ps{M}\to \ps{M},\qquad
  \setlift{T}(X)=\bigcup_{m\in X}T(m)
  \qquad(T\in\{A_{x,E},W_{x,E},B_{E,b},G_{E,k},\eta\})
 \]
-로 유도한다. 특히 $\setlift{\eta}=\Id_D$이고,
+로 유도한다. 특히 $\setlift{\eta}=\Id_{\ps{M}}$이고,
 각 $\setlift{T}$는 임의의 합집합을 보존한다.
 
 \paragraph{요약 의미공간과 연산자 가정.}
 최하원소 $\bot_M$과 모든 체인의 최소상한을 갖는 CPO
 $(\Msharp,\sqsubseteq)$ 및 다음 Galois connection을 가정한다.
 \[
- \alpha_M:D\rightleftarrows \Msharp:\gamma_M,\qquad
+ \alpha_M:\ps{M}\rightleftarrows \Msharp:\gamma_M,\qquad
  \alpha_M(X)\sqsubseteq a\ \Longleftrightarrow\
  X\subseteq\gamma_M(a).
                                                                \tag{2}
@@ -107,8 +111,8 @@ $(\Msharp,\sqsubseteq)$ 및 다음 Galois connection을 가정한다.
 \begin{array}{c|c|c|c}
  \text{연산자}&\text{한 메모리 입력}&\text{집합 입력으로 올린 타입}&\text{요약 타입}\\ \hline
  A_{x,E},W_{x,E},B_{E,b},G_{E,k},\eta
-   &M\to D&D\to D&\Msharp\to \Msharp\\
- \text{결과의 합집합}&--&D\times D\to D&\Msharp\times \Msharp\to \Msharp
+   &M\to \ps{M}&\ps{M}\to \ps{M}&\Msharp\to \Msharp\\
+ \text{결과의 합집합}&--&\ps{M}\times \ps{M}\to \ps{M}&\Msharp\times \Msharp\to \Msharp
 \end{array}
 \]
 요약 버전은 각각 $A^\sharp,W^\sharp,B^\sharp,G^\sharp$,
@@ -287,7 +291,7 @@ $\atr\subseteq Q\times Q$를 다음과 같이 정의한다.
 \]
 각 요약 전이 연산자와 요약 합집합의 단조성에 의해 $F_P^\sharp$도 단조이다.
 따라서 (10)의 반복열은 증가하는 체인이고 그 최소상한이 존재한다.
-$F_P^\sharp$가 추가로 $\omega$-연속이면
+$F_P^\sharp$가 추가로 연속이면
 $\underbar{P}^\sharp=\lf F_P^\sharp$이다.
 
 $Q=L\times \Msharp$에 대해, $\Step^\sharp$을 이렇게 정의할 수도 있다.
@@ -389,8 +393,190 @@ $\gamma_S$의 단조성과 (7), (10)에 의해
 극한에서의 포함관계에는 $\gamma_S$의 단조성을 사용한다.
 \end{proof}
 
-Exercise 1의 Rocq 구현은 다음 저장소에서 확인할 수 있다:
-\url{https://github.com/Yeonwoo-Nam/ProgramAnalysis_26-2_Project}.
+\section*{Exercise 2. Definitional interpreter style}
+
+\paragraph{1. 모둠 실행기와 의미 연산자.}
+공통 설정의 $\ps{M}$와 (1)의 연산자들을 그대로 사용한다.
+전체 프로그램 $P$를 고정하고, $C\in\Cmd_P$에 대한 호출은
+$C$에서 시작하여 전체 프로그램이 종료될 때의 메모리들을 반환하도록 정의한다.
+즉, $C$의 정상 종료 뒤에는 Exercise 1에서 정한 lexical continuation을 실행한다.
+이렇게 하면 실행기의 타입을 $I:\Cmd_P\to \ps{M}\to \ps{M}$로 유지하면서도,
+\texttt{goto}가 중첩된 command의 안이나 밖으로 점프하는 경우를 다룰 수 있다.
+
+실행 공간은 pointwise CPO
+\[
+ \mathcal H=\Cmd_P\to \ps{M}\to \ps{M},\qquad
+ \bot_{\mathcal H}(C)(X)=\emptyset
+\]
+이다. $J\in\mathcal H$가 주어졌을 때, 실행 위치에서의 호출을 다음 연산자로 정의한다.
+\[
+\begin{aligned}
+ R&:\mathcal H\to L\to(\ps{M}\to \ps{M}),\\
+ R_J(\halt)(X)&=X,\\
+ R_J(l)(X)&=J(P_l)(X)\qquad(l\in L_P).
+\end{aligned}                                                     \tag{12}
+\]
+$\halt$에서의 호출은 이미 종료했으므로 입력 메모리를 그대로 반환한다.
+$\mathcal F:\mathcal H\to\mathcal H$는 다음과 같다.
+각 행에서 $l=\lab(C)$이며, $\nxt,\nt,\nf$는 (4)의 관계이다.
+\[
+\begin{array}{c|l}
+ C&\mathcal F(J)(C)(X)\\ \hline
+ x:=E&R_J(\nxt(l))(\setlift{A}_{x,E}(X))\\
+ *x:=E&R_J(\nxt(l))(\setlift{W}_{x,E}(X))\\
+ C_1;C_2&R_J(\nxt(l))(X)\\
+ \mathsf{if}\ E\ C_1\ C_2&
+ R_J(\nt(l))(\setlift{B}_{E,\T}(X))
+ \ \cup\ R_J(\nf(l))(\setlift{B}_{E,\Ff}(X))\\
+ \mathsf{repeat}\ C_0\ E&
+ R_J(\nt(l))(\setlift{B}_{E,\T}(X))
+ \ \cup\ R_J(\nf(l))(\setlift{B}_{E,\Ff}(X))\\
+ \mathsf{goto}\ E&
+ \displaystyle\bigcup_{k\in L_P}R_J(k)(\setlift{G}_{E,k}(X))
+\end{array}                                                       \tag{13}
+\]
+사용하는 연산자의 타입은 $\setlift{A},\setlift{W},\setlift{B},\setlift{G}:\ps{M}\to \ps{M}$,
+$\Id_{\ps{M}}:\ps{M}\to \ps{M}$, $\cup:\ps{M}\times \ps{M}\to \ps{M}$,
+$\bigcup:(L_P\to \ps{M})\to \ps{M}$이다.
+
+$\mathcal F$는 단조이고 연속이다.
+전체 프로그램의 실행 의미를
+\[
+ \underbar{P}=(\lf\mathcal F)(P)=\bigsqcup_{n\ge0}\mathcal F^n(\bot_{\mathcal H})(P)                                  \tag{14}
+\]
+로 정의한다.
+
+% \begin{lemma}[Transitional semantics와의 일치]
+% $C\in\Cmd_P$와 $X\subseteq M$에 대해
+% \[
+%  I(C)(X)=\{m'\mid\exists m\in X.\
+%    (\lab(C),m)\tr^*(\halt,m')\}.                                \tag{15}
+% \]
+% 특히 $\underbar{P}(M_0)$는 Exercise 1에서 도달 가능한 종료 메모리들의 집합이며,
+% $I(C)(X)=\bigcup_{m\in X}I(C)(\{m\})$이다.
+% \end{lemma}
+% \begin{proof}
+% $J_n=\mathcal F^n(\bot_{\mathcal H})$라 하자.
+% $J_0$의 결과는 공집합이다.
+% (13)의 각 행은 (5)의 해당 한걸음을 실행한 뒤 $R_{J_n}$을 호출한다.
+% $R_{J_n}(\halt)$는 도착한 메모리를 반환하고,
+% 그 밖의 위치에서는 $J_n$으로 실행을 계속한다.
+% 따라서 $n$에 대한 귀납법으로 $J_n$의 결과는
+% 해당 위치에서 $n$걸음 이내에 종료하는 실행의 결과와 같다.
+% 그 합집합은 모든 유한 종료 실행의 결과이므로 (15)를 얻는다.
+% 전체 프로그램의 시작점에 적용하면 (7)의 종료 상태들과 일치한다.
+% 또 (15)에서 입력 메모리 $m$에 대한 존재양화를 밖으로 꺼내면
+% natural powerset extension 성질을 얻는다.
+% 종료하지 않는 실행만 있는 입력에서는 결과가 공집합이다.
+% \end{proof}
+
+\paragraph{2--3. 요약 실행기와 요약의미.}
+요약 실행 공간은 pointwise CPO
+\[
+ \mathcal H^\sharp=\Cmd_P\to\Msharp\to\Msharp,\qquad
+ \bot_{\mathcal H^\sharp}(C)(a)=\bot_M
+\]
+이다. $K\in\mathcal H^\sharp$에 대해
+\[
+ R^\sharp:\mathcal H^\sharp\to L\to(\Msharp\to\Msharp),\qquad
+ R^\sharp_K(\halt)(a)=a,\qquad
+ R^\sharp_K(l)(a)=K(P_l)(a)\quad(l\in L_P)                       \tag{16}
+\]
+로 두고, (13)과 같은 모양으로
+$\mathcal F^\sharp:\mathcal H^\sharp\to\mathcal H^\sharp$를 정의한다.
+\[
+\begin{array}{c|l}
+ C&\mathcal F^\sharp(K)(C)(a)\\ \hline
+ x:=E&R^\sharp_K(\nxt(l))(A^\sharp_{x,E}(a))\\
+ *x:=E&R^\sharp_K(\nxt(l))(W^\sharp_{x,E}(a))\\
+ C_1;C_2&R^\sharp_K(\nxt(l))(a)\\
+ \mathsf{if}\ E\ C_1\ C_2&
+ R^\sharp_K(\nt(l))(B^\sharp_{E,\T}(a))
+ \ \aunion\ R^\sharp_K(\nf(l))(B^\sharp_{E,\Ff}(a))\\
+ \mathsf{repeat}\ C_0\ E&
+ R^\sharp_K(\nt(l))(B^\sharp_{E,\T}(a))
+ \ \aunion\ R^\sharp_K(\nf(l))(B^\sharp_{E,\Ff}(a))\\
+ \mathsf{goto}\ E&
+ \displaystyle\aunions\{R^\sharp_K(k)(G^\sharp_{E,k}(a))\mid k\in L_P\}
+\end{array}                                                       \tag{17}
+\]
+요약 의미 연산자의 타입은
+$A^\sharp,W^\sharp,B^\sharp,G^\sharp,\Id_{\Msharp}:\Msharp\to\Msharp$,
+$\aunion:\Msharp\times\Msharp\to\Msharp$,
+$\aunions:\ps{\Msharp}\to\Msharp$이다.
+모든 원래 레이블 $k\in L_P$에 대해 $G^\sharp_{E,k}$를 적용하므로,
+식의 요약값에서 가능한 점프 대상을 따로 열거할 연산자는 필요하지 않다.
+
+요약 연산자들의 단조성으로 $\mathcal F^\sharp$는 단조이므로
+\[
+ \underbar{P}^\sharp = \bigsqcup_{n\ge0}(\mathcal F^\sharp)^n(\bot_{\mathcal H^\sharp})(P)              \tag{18}
+\]
+가 정의된다.
+
+\paragraph{4--5. 안전성.}
+(2)의 Galois connection과 (3)의 요약 의미 연산자 안전성,
+요약 합집합의 단조성과 안전성을 가정한다.
+후보 실행기 $J\in\mathcal H$, $K\in\mathcal H^\sharp$ 사이의 관계를
+\[
+ J\preceq K\quad\Longleftrightarrow\quad
+ \forall C,X,a.\ X\subseteq\gamma_M(a)
+ \ \Longrightarrow\ J(C)(X)\subseteq\gamma_M(K(C)(a))            \tag{19}
+\]
+로 둔다. 재귀 호출에서는 $X=\gamma_M(a)$인 경우뿐 아니라,
+그 안에 포함되는 임의의 메모리집합도 다룬다.
+
+
+\begin{lemma}[실행기 몸체의 안전성]
+$J\preceq K$이면 $\mathcal F(J)\preceq\mathcal F^\sharp(K)$이다.
+\end{lemma}
+\begin{proof}
+$X\subseteq\gamma_M(a)$라 하자. 우선 $R_J(q)(X)$는
+$\gamma_M(R^\sharp_K(q)(a))$에 포함된다.
+$q=\halt$이면 주어진 포함관계이고, $q\in L_P$이면 (19)이다.
+
+$\mathcal F(J)(C)(X)$의 command 형태에 따라 경우를 나눈다.
+대입이면 구체 대입의 단조성과 (3)에 의해
+\[
+ \setlift{A}_{x,E}(X)
+ \subseteq\setlift{A}_{x,E}(\gamma_M(a))
+ \subseteq\gamma_M(A^\sharp_{x,E}(a)).
+\]
+여기에 위의 $R$의 안전성을 적용하면 된다.
+간접대입도 $W$에 대해 같으며, sequence는 $X\subseteq\gamma_M(a)$를
+그대로 후속 호출에 사용한다.
+조건문과 repeat에서는 $b\in\{\T,\Ff\}$마다
+$\setlift{B}_{E,b}(X)\subseteq\gamma_M(B^\sharp_{E,b}(a))$를 얻는다.
+각 후속 호출의 안전성을 적용하고 두 결과를 요약 합집합으로 합친다.
+점프에서는 각 $k\in L_P$마다
+$\setlift{G}_{E,k}(X)\subseteq\gamma_M(G^\sharp_{E,k}(a))$에
+후속 호출의 안전성을 적용한다.
+모든 $k$에 대한 결과의 합집합은 $\aunions$의 안전성으로 포함된다.
+\end{proof}
+
+\begin{theorem}[Definitional interpreter analysis의 안전성]
+모든 프로그램 $P$와 $a\in\Msharp$에 대해
+\[
+ \underbar{P}(\gamma_M(a))\subseteq\gamma_M(\underbar{P}^\sharp(a)).             \tag{20}
+\]
+따라서 $M_0\subseteq\gamma_M(a_0)$이면
+$\underbar{P}(M_0)\subseteq\gamma_M(\underbar{P}^\sharp(a_0))$이다.
+\end{theorem}
+\begin{proof}
+$J_n=\mathcal F^n(\bot_{\mathcal H})$,
+$K_n=(\mathcal F^\sharp)^n(\bot_{\mathcal H^\sharp})$로 둔다.
+$J_0(C)(X)=\emptyset$이므로 $J_0\preceq K_0$이다.
+몸체의 안전성 렘마를 반복 적용하면 모든 $n$에 대해 $J_n\preceq K_n$이다.
+$X\subseteq\gamma_M(a)$일 때, 각 $K_n(P)(a)\sqsubseteq\underbar{P}^\sharp(a)$이므로
+$\gamma_M$의 단조성과 (14), (18)에 의해
+\[
+ \underbar{P}(X)=\bigcup_{n\ge0}J_n(P)(X)
+ \subseteq\bigcup_{n\ge0}\gamma_M(K_n(P)(a))
+ \subseteq\gamma_M(\underbar{P}^\sharp(a)).
+\]
+$X=\gamma_M(a)$이면 (20)이 성립한다.
+\end{proof}
+
+
 
 
 \end{document}

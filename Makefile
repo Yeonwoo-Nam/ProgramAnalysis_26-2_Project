@@ -16,7 +16,7 @@ core: Makefile.coq $(CORE_THEORIES)
 
 audit: all
 	coqtop -quiet -batch -R src DAnalyzer -l src/Examples/Assumptions.v
-	coqchk -silent -R src DAnalyzer DAnalyzer.Abstract.TransitionSound DAnalyzer.Examples.Examples DAnalyzer.Examples.NonLatticeDomain
+	coqchk -silent -R src DAnalyzer DAnalyzer.Abstract.TransitionSound DAnalyzer.Abstract.InterpreterSound DAnalyzer.Examples.Examples DAnalyzer.Examples.InterpreterExamples DAnalyzer.Examples.NonLatticeDomain
 
 # Match FlowDown: discover sources on every invocation, but keep the project
 # timestamp stable unless its contents change (including moves/removals).

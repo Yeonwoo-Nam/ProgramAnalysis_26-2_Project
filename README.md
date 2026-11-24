@@ -1,7 +1,8 @@
-# Generic transitional analysis for D
+# Generic program analyses for D
 
-Rocq formalization of Exercise 1 in [the solution](doc/project1/project1_solution.tex).
-The analysis and soundness proofs take an `AbstractDomain` record containing the
+Rocq formalization of Exercises 1 and 2 in [the solution](doc/project1/project1_solution.tex):
+transitional analysis and a definitional interpreter.
+Both analyses and their soundness proofs take an `AbstractDomain` record containing the
 abstract memory CPO, abstract union, Galois connection, whole-memory transfers, and their
 monotonicity and soundness proofs. The implementation uses the Rocq standard
 library; it has no ConCRIS dependency.
@@ -42,12 +43,22 @@ make clean
 | Directory | Contents |
 | --- | --- |
 | `src/Foundations/` | Predicate sets, CPOs, least fixed points, and the Kleene theorem. |
-| `src/Language/` | Syntax and concrete semantics. |
-| `src/Abstract/` | The domain record, abstract transitions, and soundness. |
+| `src/Language/` | Syntax, concrete transitions, and the collecting interpreter. |
+| `src/Abstract/` | The shared domain record, both abstract analyses, and soundness. |
 | `src/Examples/` | One-element and nonlattice domain instances, proved semantic examples, and the assumptions audit. |
 
 The construction needs no classical axioms, finite height, or widening. All
 audited results are closed under the global context, with no admitted proofs.
-The current scope is transitional semantics and its generic proof; concrete
-watermark domains and convergence algorithms remain future work.
+Concrete watermark domains and convergence algorithms remain future work.
 
+## Definition and theorem locations
+
+| Part | Declaration | File and line |
+| --- | --- | --- |
+| Program syntax | `Program` | [src/Language/Syntax.v:34](src/Language/Syntax.v#L34) |
+| Exercise 1: collecting semantics | `Reach` | [src/Language/Semantics.v:93](src/Language/Semantics.v#L93) |
+| Exercise 1: abstract semantics | `Reach_sharp` | [src/Abstract/Transition.v:114](src/Abstract/Transition.v#L114) |
+| Exercise 1: soundness theorem | `reachability_sound` | [src/Abstract/TransitionSound.v:68](src/Abstract/TransitionSound.v#L68) |
+| Exercise 2: collecting interpreter | `outputs` | [src/Language/Interpreter.v:38](src/Language/Interpreter.v#L38) |
+| Exercise 2: abstract interpreter | `outputs_sharp` | [src/Abstract/Interpreter.v:33](src/Abstract/Interpreter.v#L33) |
+| Exercise 2: interpreter soundness theorem | `outputs_sound` | [src/Abstract/InterpreterSound.v:64](src/Abstract/InterpreterSound.v#L64) |
