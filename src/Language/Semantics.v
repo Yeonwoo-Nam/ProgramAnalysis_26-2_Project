@@ -56,7 +56,8 @@ Section Transitions.
 Context (M : AddressMap) (P : Program).
 Definition state := (point * Memory)%type.
 
-(* The command at the source label determines the rule. Ordinary successors
+(* The node at the source label determines the rule. A repeat node is its
+   post-body test; normal entry and true back-edges enter the body. Successors
    come from syntax metadata; goto evaluates its expression directly. *)
 Inductive step : state -> state -> Prop :=
 | StepAssign l x e q m v :
@@ -220,7 +221,7 @@ Corollary Reach_points M0 p m : Reach M P M0 (p, m) -> In p (points P).
 Proof.
   assert (Hpoints : forall s, reachable M P M0 s -> In (fst s) (points P)).
   { intros s H. induction H.
-    - destruct H as [He _]. rewrite He. apply command_point_valid, command_self.
+    - destruct H as [He _]. rewrite He. apply command_entry_valid, command_self.
     - destruct s as [q n], t as [r o]. exact (proj2 (step_points H0)). }
   intros H. apply (Hpoints (p, m)), Reach_finite, H.
 Qed.

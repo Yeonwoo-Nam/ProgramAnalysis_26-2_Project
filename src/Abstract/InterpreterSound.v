@@ -49,14 +49,19 @@ Proof.
   induction n as [|n IH]; [intros c X a HX; apply empty_subset|].
   apply interpreter_body_sound, IH.
 Qed.
-Theorem interpreter_sound c X a : subset X (gamma D a) ->
-  subset (interpret M P c X) (gamma D (interpret_sharp P D c a)).
+Theorem interpreter_node_sound c X a : subset X (gamma D a) ->
+  subset (interpret_node M P c X) (gamma D (interpret_node_sharp P D c a)).
 Proof.
   intros HX m H. apply env_sup in H. destruct H as [n H].
   eapply gamma_mono.
   - exact (@iteration_limit_upper (interpreter_sharp_cpo D)
       (interpreter_body_sharp P D) (@interpreter_body_sharp_mono M P D) n c a).
   - eapply interpreter_iterate_sound; eauto.
+Qed.
+Theorem interpreter_sound c X a : subset X (gamma D a) ->
+  subset (interpret M P c X) (gamma D (interpret_sharp P D c a)).
+Proof.
+  intros HX. apply resume_sound; [intros d Y b HY; apply interpreter_node_sound, HY|exact HX].
 Qed.
 Corollary interpreter_gamma_sound c a :
   subset (interpret M P c (gamma D a)) (gamma D (interpret_sharp P D c a)).

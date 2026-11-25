@@ -5,7 +5,14 @@ transitional analysis and a definitional interpreter.
 Both analyses and their soundness proofs take an `AbstractDomain` record containing the
 abstract memory CPO, abstract union, Galois connection, whole-memory transfers, and their
 monotonicity and soundness proofs. The implementation uses the Rocq standard
-library; it has no ConCRIS dependency.
+library.
+
+`repeat C E` has do-while semantics: enter `C`, then test `E` in the
+resulting memory; a nonzero result repeats the body. `label` gives a command's
+entry point, so `label (CRepeat l body e) = label body`. `node_label` gives
+the unique attached label; for a repeat, it identifies the test after the body.
+Lookup and computed goto use node labels. Both public interpreters start at
+command entry points and use auxiliary node interpreters for the tests.
 
 The lecture notes in [`doc/lecture slide/`](doc/lecture%20slide/) are from
 [Kwangkeun Yi's Program Analysis course](https://kwangkeunyi.snu.ac.kr/4541.664A/26/).
@@ -55,10 +62,10 @@ Concrete watermark domains and convergence algorithms remain future work.
 
 | Part | Declaration | File and line |
 | --- | --- | --- |
-| Program syntax | `Program` | [src/Language/Syntax.v:34](src/Language/Syntax.v#L34) |
-| Exercise 1: collecting semantics | `Reach` | [src/Language/Semantics.v:93](src/Language/Semantics.v#L93) |
+| Program syntax | `Program` | [src/Language/Syntax.v:41](src/Language/Syntax.v#L41) |
+| Exercise 1: collecting semantics | `Reach` | [src/Language/Semantics.v:94](src/Language/Semantics.v#L94) |
 | Exercise 1: abstract semantics | `Reach_sharp` | [src/Abstract/Transition.v:114](src/Abstract/Transition.v#L114) |
 | Exercise 1: soundness theorem | `reachability_sound` | [src/Abstract/TransitionSound.v:68](src/Abstract/TransitionSound.v#L68) |
-| Exercise 2: collecting interpreter | `outputs` | [src/Language/Interpreter.v:38](src/Language/Interpreter.v#L38) |
-| Exercise 2: abstract interpreter | `outputs_sharp` | [src/Abstract/Interpreter.v:33](src/Abstract/Interpreter.v#L33) |
-| Exercise 2: interpreter soundness theorem | `outputs_sound` | [src/Abstract/InterpreterSound.v:64](src/Abstract/InterpreterSound.v#L64) |
+| Exercise 2: collecting interpreter | `outputs` | [src/Language/Interpreter.v:42](src/Language/Interpreter.v#L42) |
+| Exercise 2: abstract interpreter | `outputs_sharp` | [src/Abstract/Interpreter.v:35](src/Abstract/Interpreter.v#L35) |
+| Exercise 2: interpreter soundness theorem | `outputs_sound` | [src/Abstract/InterpreterSound.v:69](src/Abstract/InterpreterSound.v#L69) |

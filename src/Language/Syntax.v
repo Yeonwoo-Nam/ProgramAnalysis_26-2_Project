@@ -18,17 +18,24 @@ Inductive cmd :=
 | CRepeat (l : nat) (body : cmd) (e : expr)
 | CGoto (l : nat) (e : expr).
 
-Definition label (c : cmd) : nat :=
+(* Each node owns a unique label. For repeat this is the test after the body. *)
+Definition node_label (c : cmd) : nat :=
   match c with
   | CAssign l _ _ | CStore l _ _ | CSeq l _ _
   | CIf l _ _ _ | CRepeat l _ _ | CGoto l _ => l
+  end.
+(* Executing a repeat starts at its body, including when repeats are nested. *)
+Fixpoint label (c : cmd) : nat :=
+  match c with
+  | CRepeat _ body _ => label body
+  | _ => node_label c
   end.
 Fixpoint commands (c : cmd) : list (cmd) :=
   c :: match c with
        | CSeq _ a b | CIf _ _ a b => commands a ++ commands b
        | CRepeat _ b _ => commands b
        | _ => [] end.
-Definition labels (c : cmd) := map label (commands c).
+Definition labels (c : cmd) := map node_label (commands c).
 
 (* A program is a syntax tree whose command labels are globally unique. *)
 Record Program := {
@@ -38,6 +45,12 @@ Record Program := {
 
 Lemma command_self (c : cmd) : In c (commands c).
 Proof. destruct c; simpl; auto. Qed.
+Lemma entry_node (c : cmd) :
+  exists d, In d (commands c) /\ node_label d = label c.
+Proof.
+  induction c; try (eexists; split; [apply command_self|reflexivity]).
+  destruct IHc as [d [Hd Hl]]. exists d. split; [simpl; auto|exact Hl].
+Qed.
 Lemma commands_trans (small mid whole : cmd) :
   In small (commands mid) -> In mid (commands whole) -> In small (commands whole).
 Proof.

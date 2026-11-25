@@ -4,7 +4,7 @@ Set Implicit Arguments.
 
 (** * Definitions *)
 
-(* A call runs from a command to the end of the fixed whole program. Its
+(* An environment call runs from a node to the end of the fixed whole program. Its
    lexical continuation is already determined by P, including after goto. *)
 Definition interpreter_cpo := map_cpo cmd (map_cpo (set Memory) (set_cpo Memory)).
 Definition InterpreterEnv := carrier interpreter_cpo.
@@ -34,7 +34,11 @@ Definition interpreter_body (J : InterpreterEnv) : InterpreterEnv :=
       resume J (At t) (target M e t X) m'
   end.
 
-Definition interpret : InterpreterEnv := @lfp interpreter_cpo interpreter_body.
+Definition interpret_node : InterpreterEnv := @lfp interpreter_cpo interpreter_body.
+(* The recursive environment runs nodes. Public command calls enter the body
+   first for repeat; looking up the repeat node directly runs its test. *)
+Definition interpret (c : cmd) (X : set Memory) :=
+  resume interpret_node (At (label c)) X.
 Definition outputs (X : set Memory) := interpret (root P) X.
 
 (* Monotonicity in the input is distinct from monotonicity in the
@@ -102,8 +106,8 @@ Proof.
   - destruct H as [t [Ht H]]. apply resume_sup in H. destruct H as [n H].
     exists n, t. auto.
 Qed.
-Theorem interpret_fixed :
-  @equiv interpreter_cpo (interpreter_body interpret) interpret.
+Theorem interpret_node_fixed :
+  @equiv interpreter_cpo (interpreter_body interpret_node) interpret_node.
 Proof. apply lfp_fixed; [apply interpreter_body_mono|apply interpreter_body_continuous]. Qed.
 
 Lemma resume_input_mono J : input_monotone J ->
@@ -130,14 +134,14 @@ Proof.
     + intros m [t [Ht Hm]]. exists t. split; [exact Ht|].
       eapply resume_input_mono; [exact IH|apply target_mono, H|exact Hm].
 Qed.
-Lemma interpret_input_mono : input_monotone interpret.
+Lemma interpret_node_input_mono : input_monotone interpret_node.
 Proof.
   intros c X Y H m Hm. apply env_sup in Hm. apply env_sup.
   destruct Hm as [n Hm]. exists n. eapply iterate_input_mono; eauto.
 Qed.
 
 Lemma resume_paths J :
-  (forall c, In c (commands (root P)) -> forall X, subset (J c X) (returns (At (label c)) X)) ->
+  (forall c, In c (commands (root P)) -> forall X, subset (J c X) (returns (At (node_label c)) X)) ->
   forall q X, subset (resume J q X) (returns q X).
 Proof.
   intros H [|l] X m' Hm; simpl in Hm.
@@ -148,11 +152,11 @@ Qed.
 Lemma body_paths J :
   (forall q X, subset (resume J q X) (returns q X)) ->
   forall c, In c (commands (root P)) -> forall X,
-    subset (interpreter_body J c X) (returns (At (label c)) X).
+    subset (interpreter_body J c X) (returns (At (node_label c)) X).
 Proof.
   intros HJ c Hc X m' H.
   destruct (lookup_complete P c Hc) as [k Hlookup].
-  assert (Hcmd : command_at P (label c) = Some c).
+  assert (Hcmd : command_at P (node_label c) = Some c).
   { unfold command_at. rewrite Hlookup. reflexivity. }
   destruct c; cbn [interpreter_body] in H; simpl in Hcmd, Hlookup |- *.
   - assert (Hnext : next P l = Some k) by (unfold next; rewrite Hlookup; reflexivity).
@@ -186,64 +190,74 @@ Proof.
     exists m. split; [exact HX|]. econstructor; [eapply StepGoto; eauto|exact Hp].
 Qed.
 Lemma iterate_paths n : forall c, In c (commands (root P)) -> forall X,
-  subset (@iterate interpreter_cpo interpreter_body n c X) (returns (At (label c)) X).
+  subset (@iterate interpreter_cpo interpreter_body n c X) (returns (At (node_label c)) X).
 Proof.
   induction n as [|n IH]; intros c Hc X.
   - intros m H. exact (False_rect _ H).
   - apply body_paths; [apply resume_paths, IH|exact Hc].
 Qed.
-Theorem interpret_paths c : In c (commands (root P)) -> forall X,
-  subset (interpret c X) (returns (At (label c)) X).
+Theorem interpret_node_paths c : In c (commands (root P)) -> forall X,
+  subset (interpret_node c X) (returns (At (node_label c)) X).
 Proof.
   intros Hc X m H. apply env_sup in H. destruct H as [n H].
   eapply iterate_paths; eauto.
 Qed.
 
 Lemma resume_body l c X : command_at P l = Some c ->
-  subset (interpreter_body interpret c X) (resume interpret (At l) X).
+  subset (interpreter_body interpret_node c X) (resume interpret_node (At l) X).
 Proof.
   unfold command_at. destruct (lookup P l) as [[d k]|] eqn:Hl; simpl; [|discriminate].
-  intros H. inversion H; subst d. rewrite Hl. apply (proj1 interpret_fixed).
+  intros H. inversion H; subst d. rewrite Hl. apply (proj1 interpret_node_fixed).
 Qed.
 Lemma step_resume p m q n m' : step M P (p, m) (q, n) ->
-  resume interpret q (fun u => u = n) m' ->
-  resume interpret p (fun u => u = m) m'.
+  resume interpret_node q (fun u => u = n) m' ->
+  resume interpret_node p (fun u => u = m) m'.
 Proof.
   intros Hstep Hout. inversion Hstep; subst.
   all: eapply resume_body; [eassumption|]; cbn [interpreter_body].
-  - rewrite H4. eapply resume_input_mono; [apply interpret_input_mono| |exact Hout].
+  - rewrite H4. eapply resume_input_mono; [apply interpret_node_input_mono| |exact Hout].
     intros u ->. exists m, v. repeat split; auto.
-  - rewrite H4. eapply resume_input_mono; [apply interpret_input_mono| |exact Hout].
+  - rewrite H4. eapply resume_input_mono; [apply interpret_node_input_mono| |exact Hout].
     intros u ->. exists m, v. repeat split; auto.
   - rewrite H4. exact Hout.
-  - left. rewrite H4. eapply resume_input_mono; [apply interpret_input_mono| |exact Hout].
+  - left. rewrite H4. eapply resume_input_mono; [apply interpret_node_input_mono| |exact Hout].
     intros u ->. split; [reflexivity|]. exists v. auto.
-  - right. rewrite H4. eapply resume_input_mono; [apply interpret_input_mono| |exact Hout].
+  - right. rewrite H4. eapply resume_input_mono; [apply interpret_node_input_mono| |exact Hout].
     intros u ->. split; [reflexivity|]. exists v. auto.
-  - left. rewrite H4. eapply resume_input_mono; [apply interpret_input_mono| |exact Hout].
+  - left. rewrite H4. eapply resume_input_mono; [apply interpret_node_input_mono| |exact Hout].
     intros u ->. split; [reflexivity|]. exists v. auto.
-  - right. rewrite H4. eapply resume_input_mono; [apply interpret_input_mono| |exact Hout].
+  - right. rewrite H4. eapply resume_input_mono; [apply interpret_node_input_mono| |exact Hout].
     intros u ->. split; [reflexivity|]. exists v. auto.
   - exists t. split; [assumption|].
-    eapply resume_input_mono; [apply interpret_input_mono| |exact Hout].
+    eapply resume_input_mono; [apply interpret_node_input_mono| |exact Hout].
     intros u ->. split; [reflexivity|assumption].
 Qed.
 Lemma path_resume s t : path M P s t -> forall m',
-  resume interpret (fst t) (fun u => u = snd t) m' ->
-  resume interpret (fst s) (fun u => u = snd s) m'.
+  resume interpret_node (fst t) (fun u => u = snd t) m' ->
+  resume interpret_node (fst s) (fun u => u = snd s) m'.
 Proof.
   intros H. induction H; intros m' Hout; [exact Hout|].
   destruct s as [p m], t as [q n]. eapply step_resume; [exact H|apply IHpath, Hout].
 Qed.
+Theorem interpret_node_returns c : In c (commands (root P)) -> forall X,
+  same_set (interpret_node c X) (returns (At (node_label c)) X).
+Proof.
+  intros Hc X. split; [apply interpret_node_paths, Hc|].
+  intros m' [m [HX Hp]].
+  assert (Hrun : resume interpret_node (At (node_label c)) (fun u => u = m) m').
+  { apply (path_resume Hp). reflexivity. }
+  destruct (lookup_complete P c Hc) as [k Hl]. cbn [resume] in Hrun. rewrite Hl in Hrun.
+  eapply interpret_node_input_mono; [|exact Hrun]. intros u ->. exact HX.
+Qed.
+Lemma interpret_input_mono : input_monotone interpret.
+Proof. intros c X Y H. apply resume_input_mono; [apply interpret_node_input_mono|exact H]. Qed.
 Theorem interpret_returns c : In c (commands (root P)) -> forall X,
   same_set (interpret c X) (returns (At (label c)) X).
 Proof.
-  intros Hc X. split; [apply interpret_paths, Hc|].
-  intros m' [m [HX Hp]].
-  assert (Hrun : resume interpret (At (label c)) (fun u => u = m) m').
-  { apply (path_resume Hp). reflexivity. }
-  destruct (lookup_complete P c Hc) as [k Hl]. cbn [resume] in Hrun. rewrite Hl in Hrun.
-  eapply interpret_input_mono; [|exact Hrun]. intros u ->. exact HX.
+  intros Hc X. destruct (entry_node c) as [d [Hd Heq]].
+  assert (Hin : In d (commands (root P))) by (eapply commands_trans; eauto).
+  destruct (lookup_complete P d Hin) as [k Hl].
+  unfold interpret, resume. rewrite <- Heq, Hl. apply interpret_node_returns, Hin.
 Qed.
 Theorem interpret_natural_extension c X : In c (commands (root P)) ->
   same_set (interpret c X) (fun m' => exists m, X m /\ interpret c (fun u => u = m) m').
@@ -265,4 +279,3 @@ Proof.
 Qed.
 
 End Interpreter.
-

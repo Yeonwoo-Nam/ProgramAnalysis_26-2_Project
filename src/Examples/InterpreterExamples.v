@@ -12,17 +12,35 @@ Lemma halt_path_identity (M : AddressMap) P m n :
 Proof.
   intros H. inversion H; subst; [reflexivity|]. exfalso. eapply halt_stuck; eauto.
 Qed.
-Example interpreter_false_repeat X m : outputs example_memory false_loop X m <-> X m.
+Example interpreter_false_repeat X m : outputs example_memory false_loop X m <->
+  exists n, X n /\ m = update n (addr example_memory Examples.X) 9.
 Proof.
   unfold outputs. split.
   - intros H. apply (proj1 (interpret_returns example_memory false_loop _ (command_self _) X)) in H.
     destruct H as [n [HX Hp]]. inversion Hp; subst. destruct t as [q u].
     match goal with Hs : step _ _ _ _ |- _ =>
-      apply false_repeat_does_not_enter in Hs; destruct Hs as [Hq Hn]; subst end.
+      apply false_repeat_body_step in Hs; destruct Hs as [Hq Hn]; subst end.
+    match goal with Hpath : path _ _ (At 20, _) (Halt, _) |- _ =>
+      inversion Hpath; subst end.
+    destruct t as [q u].
+    match goal with Hs : step _ _ _ _ |- _ =>
+      apply false_repeat_test_exits in Hs; destruct Hs as [Hq Hn]; subst end.
     match goal with Hpath : path _ _ (Halt, _) (Halt, _) |- _ =>
-      apply halt_path_identity in Hpath; subst end. exact HX.
-  - intros H. apply (proj2 (interpret_returns example_memory false_loop _ (command_self _) X)).
-    exists m. split; [exact H|]. econstructor; [apply repeat_tests_before_body|constructor].
+      apply halt_path_identity in Hpath; subst end.
+    exists n. auto.
+  - intros [n [HX ->]].
+    apply (proj2 (interpret_returns example_memory false_loop _ (command_self _) X)).
+    exists n. split; [exact HX|].
+    econstructor; [apply repeat_body_runs_before_false_test|].
+    econstructor; [apply repeat_false_exits_after_test|constructor].
+Qed.
+Example interpreter_body_changes_guard m :
+  outputs example_memory body_changes_guard (fun n => n = m)
+    (update m (addr example_memory Examples.X) 0).
+Proof.
+  apply outputs_reach, Reach_finite, reachable_path.
+  exists (entry body_changes_guard, m). split; [split; reflexivity|].
+  apply repeat_guard_uses_body_memory.
 Qed.
 Example interpreter_missing_target X m : ~ outputs example_memory missing_target X m.
 Proof.

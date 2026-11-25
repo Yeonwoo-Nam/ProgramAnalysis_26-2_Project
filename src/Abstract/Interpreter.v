@@ -28,8 +28,10 @@ Definition interpreter_body_sharp (J : AbstractInterpreterEnv) : AbstractInterpr
   | CGoto _ e => unions_sharp D (fun b => exists t, In t (labels (root P)) /\
       b = resume_sharp J (At t) (target_sharp D e t a))
   end.
-Definition interpret_sharp : AbstractInterpreterEnv :=
+Definition interpret_node_sharp : AbstractInterpreterEnv :=
   @iteration_limit interpreter_sharp_cpo interpreter_body_sharp.
+(* Command calls start at the entry label, including the body of a repeat. *)
+Definition interpret_sharp c a := resume_sharp interpret_node_sharp (At (label c)) a.
 Definition outputs_sharp a := interpret_sharp (root P) a.
 
 (** * Lemmas *)
@@ -53,18 +55,19 @@ Proof.
   - apply unions_monotone. intros b [t [Ht ->]].
     eexists. split; [exists t; auto|apply resume_sharp_mono, H].
 Qed.
-Theorem interpret_sharp_fixed :
+Theorem interpret_node_sharp_fixed :
   @omega_continuous interpreter_sharp_cpo interpreter_body_sharp ->
-  @equiv interpreter_sharp_cpo (interpreter_body_sharp interpret_sharp) interpret_sharp.
+  @equiv interpreter_sharp_cpo (interpreter_body_sharp interpret_node_sharp) interpret_node_sharp.
 Proof. intros H. apply lfp_fixed; [apply interpreter_body_sharp_mono|exact H]. Qed.
-Theorem interpret_sharp_least J :
+Theorem interpret_node_sharp_least J :
   @prefixed interpreter_sharp_cpo interpreter_body_sharp J ->
-  @le interpreter_sharp_cpo interpret_sharp J.
+  @le interpreter_sharp_cpo interpret_node_sharp J.
 Proof. apply lfp_least, interpreter_body_sharp_mono. Qed.
 End AbstractInterpreter.
 
 Arguments resume_sharp {M} P D J q a.
 Arguments follow_sharp {M} P D J q a.
 Arguments interpreter_body_sharp {M} P D J c a.
+Arguments interpret_node_sharp {M} P D c a.
 Arguments interpret_sharp {M} P D c a.
 Arguments outputs_sharp {M} P D a.

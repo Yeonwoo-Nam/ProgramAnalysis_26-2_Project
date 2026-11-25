@@ -51,14 +51,14 @@ Print Assumptions fork_union_is_not_an_upper_bound.
 Print Assumptions nonlattice_soundness.
 Print Assumptions interpreter_body_mono.
 Print Assumptions interpreter_body_continuous.
-Print Assumptions interpret_fixed.
+Print Assumptions interpret_node_fixed.
 Print Assumptions interpret_input_mono.
 Print Assumptions interpret_returns.
 Print Assumptions interpret_natural_extension.
 Print Assumptions outputs_reach.
 Print Assumptions interpreter_body_sharp_mono.
-Print Assumptions interpret_sharp_fixed.
-Print Assumptions interpret_sharp_least.
+Print Assumptions interpret_node_sharp_fixed.
+Print Assumptions interpret_node_sharp_least.
 Print Assumptions interpreter_body_sound.
 Print Assumptions interpreter_iterate_sound.
 Print Assumptions interpreter_sound.
@@ -70,3 +70,15 @@ Print Assumptions interpreter_false_repeat.
 Print Assumptions interpreter_missing_target.
 Print Assumptions interpreter_input_jump.
 Print Assumptions instantiated_interpreter_soundness.
+
+Print Assumptions entry_node.
+Print Assumptions command_entry_valid.
+Print Assumptions interpret_node_returns.
+Print Assumptions interpreter_node_sound.
+Print Assumptions repeat_entry_is_body.
+Print Assumptions repeat_body_runs_before_false_test.
+Print Assumptions false_repeat_body_step.
+Print Assumptions repeat_guard_uses_body_memory.
+Print Assumptions nested_repeat_entry_and_continuations.
+Print Assumptions branches_enter_repeat_bodies.
+Print Assumptions interpreter_body_changes_guard.

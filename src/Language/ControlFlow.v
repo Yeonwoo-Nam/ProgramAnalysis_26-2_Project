@@ -10,7 +10,7 @@ Definition points (P : Program) := Halt :: map At (labels (root P)).
 
 (* Search the syntax tree while carrying the normal continuation. *)
 Fixpoint lookup_cmd (c : cmd) (k : point) (l : nat) : option (cmd * point) :=
-  if Nat.eqb (label c) l then Some (c, k)
+  if Nat.eqb (node_label c) l then Some (c, k)
   else match c with
   | CSeq _ a b =>
       match lookup_cmd a (At (label b)) l with
@@ -28,10 +28,10 @@ Fixpoint lookup_cmd (c : cmd) (k : point) (l : nat) : option (cmd * point) :=
 Definition lookup (P : Program) l := lookup_cmd (root P) Halt l.
 
 Lemma lookup_cmd_sound c k l n q :
-  lookup_cmd c k l = Some (n, q) -> In n (commands c) /\ label n = l.
+  lookup_cmd c k l = Some (n, q) -> In n (commands c) /\ node_label n = l.
 Proof.
   revert k. induction c; intros k H; cbn [lookup_cmd] in H;
-    destruct (Nat.eqb (label _) l) eqn:Hl;
+    destruct (Nat.eqb (node_label _) l) eqn:Hl;
     try (inversion H; subst; split; [apply command_self|now apply Nat.eqb_eq in Hl]);
     try discriminate.
   - destruct (lookup_cmd c1 (At (label c2)) l) as [[n' q']|] eqn:Ha.
@@ -47,15 +47,15 @@ Proof.
   - apply IHc in H. destruct H as [Hin Heq]. split; [simpl; auto|exact Heq].
 Qed.
 Lemma lookup_sound (P : Program) l c k :
-  lookup P l = Some (c, k) -> In c (commands (root P)) /\ label c = l.
+  lookup P l = Some (c, k) -> In c (commands (root P)) /\ node_label c = l.
 Proof. apply lookup_cmd_sound. Qed.
 
 (* Failure means no command in the searched subtree has the requested label. *)
 Lemma lookup_cmd_none c k l :
-  lookup_cmd c k l = None -> forall n, In n (commands c) -> label n <> l.
+  lookup_cmd c k l = None -> forall n, In n (commands c) -> node_label n <> l.
 Proof.
   revert k. induction c; intros k H n Hin; cbn [lookup_cmd] in H;
-    destruct (Nat.eqb (label _) l) eqn:Hl; try discriminate;
+    destruct (Nat.eqb (node_label _) l) eqn:Hl; try discriminate;
     simpl in Hin; destruct Hin as [<-|Hin];
     try (now apply Nat.eqb_neq in Hl); try contradiction.
   - destruct (lookup_cmd c1 (At (label c2)) l) as [ck|] eqn:Ha; [discriminate|].
@@ -80,28 +80,36 @@ Proof.
 Qed.
 
 Theorem lookup_complete (P : Program) c :
-  In c (commands (root P)) -> exists k, lookup P (label c) = Some (c, k).
+  In c (commands (root P)) -> exists k, lookup P (node_label c) = Some (c, k).
 Proof.
-  intros Hin. destruct (lookup P (label c)) as [[c' k]|] eqn:H.
+  intros Hin. destruct (lookup P (node_label c)) as [[c' k]|] eqn:H.
   - pose proof H as Hsound. apply lookup_sound in Hsound. destruct Hsound as [Hin' Heq].
     assert (c' = c).
-    { eapply (nodup_key_unique label); [exact (unique_labels P)|exact Hin'|exact Hin|exact Heq]. }
+    { eapply (nodup_key_unique node_label); [exact (unique_labels P)|exact Hin'|exact Hin|exact Heq]. }
     subst c'. exists k. reflexivity.
   - exfalso. eapply lookup_cmd_none; [exact H|exact Hin|reflexivity].
 Qed.
 
 (* Every inherited continuation stays within the original program scope. *)
+Lemma command_entry_scope (Good : point -> Prop) c :
+  (forall d, In d (commands c) -> Good (At (node_label d))) ->
+  Good (At (label c)).
+Proof.
+  intros H. destruct (entry_node c) as [d [Hd <-]]. apply H, Hd.
+Qed.
+
 Lemma lookup_cmd_scope c k l n q (Good : point -> Prop) :
-  (forall d, In d (commands c) -> Good (At (label d))) -> Good k ->
+  (forall d, In d (commands c) -> Good (At (node_label d))) -> Good k ->
   lookup_cmd c k l = Some (n, q) -> Good q.
 Proof.
   revert k. induction c; intros k Hnodes Hk H; cbn [lookup_cmd] in H;
-    destruct (Nat.eqb (label _) l) eqn:Hl;
+    destruct (Nat.eqb (node_label _) l) eqn:Hl;
     try (inversion H; subst; exact Hk); try discriminate.
   - destruct (lookup_cmd c1 (At (label c2)) l) as [[n' q']|] eqn:Ha.
     + inversion H; subst. eapply IHc1; [| |exact Ha].
       * intros d Hd. apply Hnodes. simpl. right. apply in_or_app; auto.
-      * apply Hnodes. simpl. right. apply in_or_app. right. apply command_self.
+      * apply command_entry_scope. intros d Hd. apply Hnodes.
+        simpl. right. apply in_or_app. right. exact Hd.
     + eapply IHc2; [|exact Hk|exact H].
       intros d Hd. apply Hnodes. simpl. right. apply in_or_app; auto.
   - destruct (lookup_cmd c1 k l) as [[n' q']|] eqn:Ha.
@@ -115,8 +123,14 @@ Proof.
 Qed.
 
 Lemma command_point_valid (P : Program) c :
-  In c (commands (root P)) -> In (At (label c)) (points P).
+  In c (commands (root P)) -> In (At (node_label c)) (points P).
 Proof. intros H. right. apply in_map. unfold labels. apply in_map, H. Qed.
+Lemma command_entry_valid (P : Program) c :
+  In c (commands (root P)) -> In (At (label c)) (points P).
+Proof.
+  intros Hc. destruct (entry_node c) as [d [Hd <-]].
+  apply command_point_valid. eapply commands_trans; eauto.
+Qed.
 Lemma continuation_valid (P : Program) l c k :
   lookup P l = Some (c, k) -> In k (points P).
 Proof.
@@ -148,7 +162,7 @@ Definition nextFalse (P : Program) l : option point :=
 
 Lemma command_at_sound (P : Program) l c :
   command_at P l = Some c ->
-  In c (commands (root P)) /\ label c = l.
+  In c (commands (root P)) /\ node_label c = l.
 Proof.
   unfold command_at. destruct (lookup P l) as [[c' k]|] eqn:H; simpl; try discriminate.
   intros Heq. inversion Heq; subst c'. apply lookup_sound in H.
@@ -168,7 +182,7 @@ Proof.
   destruct c; try discriminate; intros Hq; inversion Hq; subst q.
   - eapply continuation_valid; eauto.
   - eapply continuation_valid; eauto.
-  - apply command_point_valid. eapply commands_trans; [|exact Hin].
+  - apply command_entry_valid. eapply commands_trans; [|exact Hin].
     simpl. right. apply in_or_app. left. apply command_self.
 Qed.
 Lemma nextTrue_valid (P : Program) l q : nextTrue P l = Some q -> In q (points P).
@@ -176,7 +190,7 @@ Proof.
   unfold nextTrue. destruct (lookup P l) as [[c k]|] eqn:H; [|discriminate].
   pose proof H as Hsound. apply lookup_sound in Hsound. destruct Hsound as [Hin _].
   destruct c; try discriminate; intros Hq; inversion Hq; subst q;
-    apply command_point_valid.
+    apply command_entry_valid.
   - eapply commands_trans; [|exact Hin].
     simpl. right. apply in_or_app. left. apply command_self.
   - eapply commands_trans; [|exact Hin].
@@ -187,7 +201,7 @@ Proof.
   unfold nextFalse. destruct (lookup P l) as [[c k]|] eqn:H; [|discriminate].
   pose proof H as Hsound. apply lookup_sound in Hsound. destruct Hsound as [Hin _].
   destruct c; try discriminate; intros Hq; inversion Hq; subst q.
-  - apply command_point_valid. eapply commands_trans; [|exact Hin].
+  - apply command_entry_valid. eapply commands_trans; [|exact Hin].
     simpl. right. apply in_or_app. right. apply command_self.
   - eapply continuation_valid; eauto.
 Qed.

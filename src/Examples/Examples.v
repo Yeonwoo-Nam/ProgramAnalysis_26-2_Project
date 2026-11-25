@@ -128,11 +128,28 @@ Proof.
   repeat constructor; simpl; intuition discriminate.
 Defined.
 
-Example repeat_tests_before_body m : @step example_memory false_loop (At 20, m) (Halt, m).
+Example repeat_entry_is_body : entry false_loop = At 40 /\
+  label (root false_loop) = 40%nat /\ node_label (root false_loop) = 20%nat.
+Proof. repeat split; reflexivity. Qed.
+Example repeat_body_runs_before_false_test m :
+  @step example_memory false_loop (entry false_loop, m)
+    (At 20, update m (addr example_memory X) 9).
+Proof. eapply StepAssign; try reflexivity. constructor. Qed.
+Example false_repeat_body_step m q m' :
+  @step example_memory false_loop (entry false_loop, m) (q, m') ->
+  q = At 20 /\ m' = update m (addr example_memory X) 9.
+Proof.
+  intros H. inversion H; subst; cbn in *; try discriminate.
+  match goal with H : Some _ = Some (CAssign _ _ _) |- _ => inversion H; subst end.
+  match goal with H : @eval example_memory _ (EInt _) _ |- _ =>
+    apply (eval_int_iff example_memory) in H; subst end.
+  split; [congruence|reflexivity].
+Qed.
+Example repeat_false_exits_after_test m : @step example_memory false_loop (At 20, m) (Halt, m).
 Proof.
   eapply StepRepeatFalse with (v := 0); try reflexivity. constructor.
 Qed.
-Example false_repeat_does_not_enter m q m' :
+Example false_repeat_test_exits m q m' :
   @step example_memory false_loop (At 20, m) (q, m') -> q = Halt /\ m' = m.
 Proof.
   intros H. inversion H; subst; cbn in *; try discriminate;
@@ -142,7 +159,7 @@ Proof.
     contradiction.
   - split; congruence.
 Qed.
-Example true_repeat_enters m : @step example_memory true_loop (At 20, m) (At 40, m).
+Example true_repeat_reenters_body m : @step example_memory true_loop (At 20, m) (At 40, m).
 Proof.
   eapply StepRepeatTrue with (v := 1); try reflexivity; [constructor|discriminate].
 Qed.
@@ -188,7 +205,7 @@ Example nested_lexical_context :
   lookup nested 70 = Some (CAssign 70 Y (EInt 1), At 80).
 Proof. split; reflexivity. Qed.
 Example nested_successors :
-  next nested 10 = Some (At 20) /\
+  next nested 10 = Some (At 30) /\
   nextTrue nested 20 = Some (At 30) /\
   nextFalse nested 20 = Some (At 60) /\
   next nested 40 = Some (At 20) /\
@@ -203,19 +220,17 @@ Proof. eapply StepGoto; [reflexivity|constructor|cbn; auto 20]. Qed.
 Example interior_jump_has_no_return :
   @path example_memory nested (At 10, m0) (Halt, m2).
 Proof.
-  eapply PathCons with (t := (At 20, m0)).
+  eapply PathCons with (t := (At 30, m0)).
   - eapply StepSeq; reflexivity.
-  - eapply PathCons with (t := (At 30, m0)).
-    + eapply StepRepeatTrue with (v := 1); try reflexivity; [constructor|discriminate].
-    + eapply PathCons with (t := (At 50, m0)).
-      * eapply StepIfFalse with (v := 0); try reflexivity. constructor.
-      * eapply PathCons with (t := (At 70, m0)).
-        -- apply nested_jump.
-        -- eapply PathCons with (t := (At 80, m1)).
+  - eapply PathCons with (t := (At 50, m0)).
+    + eapply StepIfFalse with (v := 0); try reflexivity. constructor.
+    + eapply PathCons with (t := (At 70, m0)).
+      * apply nested_jump.
+      * eapply PathCons with (t := (At 80, m1)).
+        -- eapply StepAssign; try reflexivity. constructor.
+        -- eapply PathCons with (t := (Halt, m2)).
            ++ eapply StepAssign; try reflexivity. constructor.
-           ++ eapply PathCons with (t := (Halt, m2)).
-              ** eapply StepAssign; try reflexivity. constructor.
-              ** constructor.
+           ++ constructor.
 Qed.
 Example nested_final_reachable : @Reach example_memory nested (fun m => m = m0) (Halt, m2).
 Proof.
@@ -230,3 +245,47 @@ Proof. apply (reachability_sound (M := example_memory)). intros m H. exact I. Qe
 Example bottom_really_denotes_memory :
   gamma (trivial_domain example_memory) bottom m0.
 Proof. exact I. Qed.
+
+Definition body_changes_guard : Program.
+Proof.
+  refine {| root := CRepeat 1 (CAssign 2 X (EInt 0)) (EVar X) |}.
+  repeat constructor; simpl; intuition discriminate.
+Defined.
+Example repeat_guard_uses_body_memory m :
+  @path example_memory body_changes_guard (entry body_changes_guard, m)
+    (Halt, update m (addr example_memory X) 0).
+Proof.
+  eapply PathCons with (t := (At 1, update m (addr example_memory X) 0)).
+  - eapply StepAssign; try reflexivity. constructor.
+  - econstructor; [|constructor].
+    eapply StepRepeatFalse with (v := 0); try reflexivity.
+    pose proof (@EvalVar example_memory (update m (addr example_memory X) 0) X) as Heval.
+    rewrite update_same in Heval. exact Heval.
+Qed.
+
+Definition nested_repeats : Program.
+Proof.
+  refine {| root := CRepeat 1 (CRepeat 2 (CAssign 3 X (EInt 9)) (EInt 0)) (EInt 0) |}.
+  repeat constructor; simpl; intuition discriminate.
+Defined.
+Example nested_repeat_entry_and_continuations :
+  entry nested_repeats = At 3 /\
+  next nested_repeats 3 = Some (At 2) /\
+  nextTrue nested_repeats 2 = Some (At 3) /\
+  nextFalse nested_repeats 2 = Some (At 1) /\
+  nextTrue nested_repeats 1 = Some (At 3) /\
+  nextFalse nested_repeats 1 = Some Halt.
+Proof. repeat split; reflexivity. Qed.
+
+Definition repeat_branch : Program.
+Proof.
+  refine {| root := CSeq 1 (CAssign 2 X (EInt 0))
+    (CIf 3 (EVar X)
+      (CRepeat 4 (CAssign 5 X (EInt 9)) (EInt 0))
+      (CRepeat 6 (CAssign 7 X (EInt 8)) (EInt 0))) |}.
+  repeat constructor; simpl; intuition discriminate.
+Defined.
+Example branches_enter_repeat_bodies :
+  nextTrue repeat_branch 3 = Some (At 5) /\
+  nextFalse repeat_branch 3 = Some (At 7).
+Proof. split; reflexivity. Qed.
